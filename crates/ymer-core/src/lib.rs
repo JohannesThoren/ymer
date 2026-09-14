@@ -2,6 +2,9 @@
 //! Beror på bevy_ecs för att kunna derive:a Component/Resource, men vet
 //! ingenting om GPU eller fönster.
 
+pub mod physics;
+pub use physics::{Collider, Gravity, RigidBody, step_physics};
+
 pub use bevy_ecs;
 pub use glam;
 pub use glam::{Mat4, Quat, Vec2, Vec3, Vec4};

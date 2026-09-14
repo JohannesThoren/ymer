@@ -78,11 +78,21 @@ impl App {
         world.insert_resource(Time::new());
         world.insert_resource(Input::default());
         world.insert_resource(ymer_core::ConsoleLog::default());
+        world.insert_resource(ymer_core::Gravity::default());
 
         let mut schedule = Schedule::new(Update);
         // Hierarkin måste räknas om efter att spelsystemen flyttat saker.
         // Sprite-animationen kör före, så att rutbytet syns samma frame.
-        schedule.add_systems((ymer_core::animate_sprites, propagate_transforms).chain());
+        // Fysiken före hierarkin, så att GlobalTransform räknas om med
+        // de slutliga positionerna.
+        schedule.add_systems(
+            (
+                ymer_core::animate_sprites,
+                ymer_core::step_physics,
+                propagate_transforms,
+            )
+                .chain(),
+        );
 
         Self {
             config,

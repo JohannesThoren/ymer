@@ -142,7 +142,10 @@ impl TypeRegistry {
 
 /// Registrerar motorns egna komponenter.
 pub fn register_builtin_types(registry: &mut TypeRegistry) {
-    use ymer_core::{Camera, EntityName, MeshInstance, Script, Sprite, SpriteAnimation, Transform};
+    use ymer_core::{
+        Camera, Collider, EntityName, MeshInstance, RigidBody, Script, Sprite, SpriteAnimation,
+        Transform,
+    };
 
     registry
         .register::<EntityName>("Name")
@@ -151,6 +154,8 @@ pub fn register_builtin_types(registry: &mut TypeRegistry) {
         .register::<MeshInstance>("MeshInstance")
         .register::<Sprite>("Sprite")
         .register::<SpriteAnimation>("SpriteAnimation")
+        .register::<Collider>("Collider")
+        .register::<RigidBody>("RigidBody")
         .register::<Script>("Script");
 }
 
