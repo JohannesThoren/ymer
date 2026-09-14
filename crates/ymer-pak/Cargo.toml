@@ -1,0 +1,13 @@
+[package]
+name = "ymer-pak"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-core = { workspace = true }
+zstd = { workspace = true }
+crc32fast = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }

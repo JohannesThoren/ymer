@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      # winit behöver X11-headers för att bygga på Linux.
+      - name: Systemberoenden
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbcommon-dev
+
+      - name: Formatering
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --features ymer-runtime/demo -- -D warnings
+
+      - name: Tester
+        run: cargo test --workspace --features ymer-runtime/demo
+
+  # Renderingstesterna kräver en GPU eller en mjukvaru-Vulkan. lavapipe
+  # duger och gör att bilderna faktiskt produceras i CI.
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Systemberoenden
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbcommon-dev mesa-vulkan-drivers
+
+      - name: Headless-rendering
+        env:
+          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        run: |
+          cargo run --features ymer-runtime/demo -p ymer-runtime --example headless
+          cargo run --features ymer-runtime/demo -p ymer-runtime --example scene_roundtrip
+          cargo run -p ymer-runtime --example sprites2d

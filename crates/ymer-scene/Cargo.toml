@@ -1,0 +1,15 @@
+[package]
+name = "ymer-scene"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-core = { workspace = true }
+bevy_ecs = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }

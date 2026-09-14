@@ -1,0 +1,10 @@
+[package]
+name = "sandbox"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-runtime = { workspace = true }
+anyhow = { workspace = true }

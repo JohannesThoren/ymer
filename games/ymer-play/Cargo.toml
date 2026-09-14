@@ -1,0 +1,19 @@
+[package]
+name = "ymer-play"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-core = { workspace = true }
+ymer-render = { workspace = true }
+ymer-runtime = { workspace = true }
+ymer-scene = { workspace = true }
+ymer-pak = { workspace = true }
+bevy_ecs = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+env_logger = { workspace = true }

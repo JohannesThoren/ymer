@@ -1,0 +1,23 @@
+[package]
+name = "ymer-render"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-core = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+bytemuck = { workspace = true }
+image = { workspace = true }
+egui = { workspace = true }
+egui-wgpu = { workspace = true }
+gltf = { workspace = true }
+glam = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+pollster = { workspace = true }

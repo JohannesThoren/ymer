@@ -1,0 +1,35 @@
+[package]
+name = "ymer-editor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[[bin]]
+name = "ymer"
+path = "src/main.rs"
+
+[dev-dependencies]
+ymer-core = { workspace = true }
+ymer-runtime = { workspace = true, features = ["demo"] }
+
+[dependencies]
+ymer-core = { workspace = true }
+ymer-render = { workspace = true }
+ymer-runtime = { workspace = true }
+ymer-scene = { workspace = true }
+ymer-pak = { workspace = true }
+ymer-script = { workspace = true }
+bevy_ecs = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+egui = { workspace = true }
+egui-wgpu = { workspace = true }
+egui-winit = { workspace = true }
+ron = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+pollster = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }

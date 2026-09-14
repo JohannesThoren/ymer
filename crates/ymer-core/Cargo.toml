@@ -1,0 +1,12 @@
+[package]
+name = "ymer-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+bevy_ecs = { workspace = true }
+glam = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }

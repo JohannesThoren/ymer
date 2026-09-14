@@ -1,0 +1,39 @@
+[package]
+name = "ymer-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[features]
+# Demoscenen används av exempel och tester, inte av motorn.
+demo = []
+
+[dependencies]
+ymer-core = { workspace = true }
+ymer-render = { workspace = true }
+ymer-scene = { workspace = true }
+ymer-script = { workspace = true }
+bevy_ecs = { workspace = true }
+winit = { workspace = true }
+wgpu = { workspace = true }
+egui = { workspace = true }
+egui-winit = { workspace = true }
+pollster = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+
+[[example]]
+name = "headless"
+required-features = ["demo"]
+
+[[example]]
+name = "scene_roundtrip"
+required-features = ["demo"]
+
+[[example]]
+name = "typescript"
+required-features = ["demo"]

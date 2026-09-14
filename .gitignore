@@ -1,0 +1,20 @@
+# Byggartefakter. scripthost är ett eget workspace med egen target/,
+# så mönstret måste matcha på alla nivåer – inte bara i roten.
+target/
+**/*.rs.bk
+
+# Projekt skapade av launchern. Egna spel bör ha eget repo – men ett
+# demoprojekt kan checkas in medvetet med `git add -f`.
+/projects
+
+# Exporterade spel
+/*-export
+*.pak
+
+# Genererade av editorn, hör till din kodeditor snarare än till projektet
+**/engine.d.ts
+**/tsconfig.json
+
+# Vanligt skräp
+.DS_Store
+*.swp
