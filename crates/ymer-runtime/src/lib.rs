@@ -325,6 +325,18 @@ impl ApplicationHandler for App {
 /// Plockar ut allt ritbart ur världen. Det här är gränssnittet mellan ECS
 /// och GPU – renderaren ser aldrig en `World`.
 pub fn build_render_list(world: &mut World, aspect: f32, assets: &Assets) -> RenderList {
+    build_render_list_with_view(world, aspect, assets, None)
+}
+
+/// Som `build_render_list`, men med möjlighet att rendera genom en annan
+/// vy än scenens kamera. Editorn använder det för sin egen vykamera, så
+/// att den aldrig behöver röra kameraentiteten i scenen.
+pub fn build_render_list_with_view(
+    world: &mut World,
+    aspect: f32,
+    assets: &Assets,
+    view_override: Option<(Mat4, Vec3)>,
+) -> RenderList {
     let mut list = RenderList::default();
 
     let camera = {
@@ -335,12 +347,13 @@ pub fn build_render_list(world: &mut World, aspect: f32, assets: &Assets) -> Ren
             .map(|(camera, global)| (*camera, *global))
     };
 
-    match camera {
-        Some((camera, global)) => {
+    match (view_override, camera) {
+        (Some((view_proj, _)), _) => list.view_proj = view_proj,
+        (None, Some((camera, global))) => {
             // Vyn är kamerans världstransform inverterad.
             list.view_proj = camera.projection(aspect) * global.0.inverse();
         }
-        None => log::warn!("ingen kamera i världen – renderar från origo"),
+        (None, None) => log::warn!("ingen kamera i världen – renderar från origo"),
     }
 
     let mut query = world.query::<(&MeshInstance, &GlobalTransform)>();

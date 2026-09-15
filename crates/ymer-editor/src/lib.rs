@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use bevy_ecs::prelude::*;
 use browser::FileBrowser;
 use project::ProjectHandle;
-use ymer_core::EntityName;
+use ymer_core::{EntityName, Transform};
 use ymer_scene::{Scene, TypeRegistry, clear_scene};
 
 pub mod browser;
@@ -19,11 +19,19 @@ pub mod launcher;
 pub mod overlay;
 pub mod play;
 pub mod project;
+pub mod view;
 pub use overlay::EguiOverlay;
 pub use play::PlayMode;
 
 /// Vad användaren bad om under en UI-frame. Samlas ihop medan världen är
 /// utlånad som läsbar, och verkställs efteråt.
+/// Genvägar begärs av fönsterhanteringen och plockas upp av UI:t.
+#[derive(Debug, Clone, Copy)]
+enum Shortcut {
+    Delete,
+    Duplicate,
+}
+
 enum Action {
     Write {
         component: String,
@@ -41,6 +49,8 @@ enum Action {
     },
     Export,
     SpawnEntity,
+    DeleteEntity,
+    DuplicateEntity,
     SavePrefab,
     Instantiate(std::path::PathBuf),
     Save,
@@ -61,6 +71,7 @@ pub struct EditorState {
     /// Öppet projekt och dess filutforskare.
     pub project: Option<ProjectHandle>,
     pub browser: Option<FileBrowser>,
+    pending_shortcut: Option<Shortcut>,
     /// Alla meshnamn assetregistret känner till – inbyggda plus importerade
     /// glTF-meshar. Underhålls av `main.rs`, som är den som äger `Assets`.
     pub available_meshes: Vec<String>,
@@ -77,6 +88,7 @@ impl Default for EditorState {
             raw_mode: false,
             project: None,
             browser: None,
+            pending_shortcut: None,
             available_meshes: vec![
                 ymer_core::BUILTIN_CUBE.to_string(),
                 ymer_core::BUILTIN_PLANE.to_string(),
@@ -92,6 +104,16 @@ impl EditorState {
         self.browser = Some(FileBrowser::new(handle.root.clone()));
         self.status = format!("öppnade {}", handle.project.name);
         self.project = Some(handle);
+    }
+
+    /// Begär borttagning av markerad entitet. Utförs nästa gång UI:t
+    /// körs, så att genvägar och knappar tar exakt samma väg.
+    pub fn request_delete(&mut self) {
+        self.pending_shortcut = Some(Shortcut::Delete);
+    }
+
+    pub fn request_duplicate(&mut self) {
+        self.pending_shortcut = Some(Shortcut::Duplicate);
     }
 
     /// Absolut sökväg för en scenfil, relativt projektet om ett är öppet.
@@ -212,6 +234,11 @@ pub fn run_ui(
 
     // --- fas 2: rita ---------------------------------------------------
     let mut actions: Vec<Action> = Vec::new();
+    match state.pending_shortcut.take() {
+        Some(Shortcut::Delete) => actions.push(Action::DeleteEntity),
+        Some(Shortcut::Duplicate) => actions.push(Action::DuplicateEntity),
+        None => {}
+    }
 
     // egui 0.36: panelerna är en enda `Panel`-typ och tar ett `Ui`, inte ett `Context`.
     let output = ctx.run_ui(raw_input, |ui| {
@@ -241,13 +268,28 @@ pub fn run_ui(
                 {
                     actions.push(Action::SpawnEntity);
                 }
-                if state.selected.is_some()
-                    && ui
+                if state.selected.is_some() {
+                    if ui
+                        .button("⧉ Duplicera")
+                        .on_hover_text("kopiera markerad entitet (Ctrl+D)")
+                        .clicked()
+                    {
+                        actions.push(Action::DuplicateEntity);
+                    }
+                    if ui
+                        .button("🗑 Ta bort")
+                        .on_hover_text("ta bort markerad entitet (Delete)")
+                        .clicked()
+                    {
+                        actions.push(Action::DeleteEntity);
+                    }
+                    if ui
                         .button("⭐ Prefab")
                         .on_hover_text("spara markerad som prefab")
                         .clicked()
-                {
-                    actions.push(Action::SavePrefab);
+                    {
+                        actions.push(Action::SavePrefab);
+                    }
                 }
                 ui.separator();
                 if ui.button("💾 Spara").clicked() {
@@ -598,6 +640,47 @@ pub fn run_ui(
                     .id();
                 state.selected = Some(spawned);
                 state.status = "entitet skapad".to_string();
+            }
+
+            Action::DeleteEntity => {
+                let Some(target) = entity else { continue };
+                let name = world
+                    .get::<EntityName>(target)
+                    .map(|name| name.0.clone())
+                    .unwrap_or_else(|| "entiteten".to_string());
+
+                // despawn tar barnen med sig via ChildOf-relationen.
+                state.status = match world.try_despawn(target) {
+                    Ok(()) => {
+                        state.selected = None;
+                        state.drafts.retain(|(entity, _), _| *entity != target);
+                        format!("tog bort {name}")
+                    }
+                    Err(err) => format!("kunde inte ta bort {name}: {err}"),
+                };
+            }
+
+            Action::DuplicateEntity => {
+                let Some(target) = entity else { continue };
+
+                // Samma väg som prefabs: serialisera delträdet och spawna
+                // in det igen. Då följer barn och alla komponenter med
+                // utan att duplicera logiken.
+                let copy = Scene::from_subtree(world, registry, target);
+                state.status = match copy.spawn_into(world, registry) {
+                    Ok(mapping) => {
+                        if let Some(&root) = mapping.get(&0) {
+                            // Flytta kopian en aning så att den inte göms
+                            // exakt bakom originalet.
+                            if let Some(mut transform) = world.get_mut::<Transform>(root) {
+                                transform.translation.x += 1.0;
+                            }
+                            state.selected = Some(root);
+                        }
+                        format!("duplicerade {} entiteter", mapping.len())
+                    }
+                    Err(err) => format!("kunde inte duplicera: {err}"),
+                };
             }
 
             Action::SavePrefab => {

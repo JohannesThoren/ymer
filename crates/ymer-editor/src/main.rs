@@ -17,9 +17,10 @@ use ymer_editor::browser::FileBrowser;
 use ymer_editor::gizmo::{self, Drag};
 use ymer_editor::launcher::{self, LauncherState};
 use ymer_editor::project::{self, ProjectHandle};
+use ymer_editor::view::EditorCamera;
 use ymer_editor::{EditorState, EguiOverlay, PlayMode, run_ui};
 use ymer_render::{Assets, Renderer};
-use ymer_runtime::{Update, build_render_list};
+use ymer_runtime::{Update, build_render_list_with_view};
 use ymer_scene::{Scene, TypeRegistry, clear_scene, register_builtin_types};
 
 /// Var script_host.wasm ligger. Den hör till motorn, inte till projektet.
@@ -47,6 +48,11 @@ struct Editor {
     gizmo_mesh: MeshId,
     drag: Option<Drag>,
     cursor: (f32, f32),
+    /// Editorns egen vy. Scenens kamera lämnas orörd.
+    camera: EditorCamera,
+    orbiting: bool,
+    panning: bool,
+    modifiers: winit::keyboard::ModifiersState,
     play: Option<PlayMode>,
     was_playing: bool,
 }
@@ -77,9 +83,44 @@ impl Editor {
             gizmo_mesh: MeshId(0),
             drag: None,
             cursor: (0.0, 0.0),
+            camera: EditorCamera::default(),
+            orbiting: false,
+            panning: false,
+            modifiers: winit::keyboard::ModifiersState::empty(),
             play: None,
             was_playing: false,
         }
+    }
+
+    /// F: rama in markerad entitet. Utan markering, hela scenen.
+    fn focus_on_selection(&mut self) {
+        let Some(renderer) = self.renderer.as_ref() else {
+            return;
+        };
+
+        if let Some(selected) = self.state.selected
+            && let Some(global) = self.world.get::<GlobalTransform>(selected)
+        {
+            let position = global.translation();
+            // Objektets storlek avgör hur nära vi lägger oss.
+            let radius = self
+                .world
+                .get::<ymer_core::MeshInstance>(selected)
+                .and_then(|instance| {
+                    renderer
+                        .meshes
+                        .half_extents(self.assets.mesh(&instance.mesh))
+                })
+                .map(|half| {
+                    let (scale, _, _) = global.0.to_scale_rotation_translation();
+                    (half * scale).length()
+                })
+                .unwrap_or(1.0);
+            self.camera.focus_on(position, radius.max(0.5));
+            return;
+        }
+
+        self.camera.focus_on(Vec3::new(0.0, 0.5, 0.0), 4.0);
     }
 
     fn refresh_mesh_names(&mut self) {
@@ -264,22 +305,81 @@ impl ApplicationHandler for Editor {
                         ElementState::Released => input.release(name),
                     }
                 }
+
+                // Editorgenvägar. Hoppas över när egui har fokus, annars
+                // raderas entiteter medan man skriver i ett textfält.
+                let typing = response.consumed || self.egui_ctx.egui_wants_keyboard_input();
+                if event.state == ElementState::Pressed
+                    && !typing
+                    && let winit::keyboard::PhysicalKey::Code(code) = event.physical_key
+                {
+                    use winit::keyboard::KeyCode;
+                    match code {
+                        KeyCode::Delete => self.state.request_delete(),
+                        KeyCode::KeyD if self.modifiers.control_key() => {
+                            self.state.request_duplicate()
+                        }
+                        KeyCode::KeyF => self.focus_on_selection(),
+                        _ => {}
+                    }
+                }
+            }
+
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.modifiers = modifiers.state();
             }
 
             WindowEvent::CursorMoved { position, .. } => {
+                let previous = self.cursor;
                 self.cursor = (position.x as f32, position.y as f32);
+                let delta = (self.cursor.0 - previous.0, self.cursor.1 - previous.1);
+
+                if self.orbiting {
+                    self.camera.orbit(delta.0, delta.1);
+                }
+                if self.panning {
+                    self.camera.pan(delta.0, delta.1);
+                }
                 if let (Some(drag), Some(renderer)) = (self.drag, self.renderer.as_ref()) {
-                    let aspect = renderer.aspect_ratio();
-                    let size = renderer.size();
-                    if let Some(view_proj) = gizmo::camera_view_proj(&mut self.world, aspect) {
-                        let ray = gizmo::screen_ray(view_proj, self.cursor, size);
-                        gizmo::update_drag(&mut self.world, &drag, &ray);
-                    }
+                    let view_proj = self.camera.view_proj(renderer.aspect_ratio());
+                    let ray = gizmo::screen_ray(view_proj, self.cursor, renderer.size());
+                    gizmo::update_drag(&mut self.world, &drag, &ray);
+                }
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                if !response.consumed {
+                    let scroll = match delta {
+                        winit::event::MouseScrollDelta::LineDelta(_, y) => y,
+                        winit::event::MouseScrollDelta::PixelDelta(position) => {
+                            position.y as f32 / 60.0
+                        }
+                    };
+                    self.camera.zoom(scroll);
                 }
             }
 
             WindowEvent::MouseInput { state, button, .. } => {
                 let over_ui = response.consumed;
+
+                // Höger orbit, mitten panorering – samma konvention som
+                // Blender och Unity, så att handen vet vad den gör.
+                match (state, button) {
+                    (ElementState::Pressed, winit::event::MouseButton::Right) if !over_ui => {
+                        self.orbiting = true;
+                    }
+                    (ElementState::Released, winit::event::MouseButton::Right) => {
+                        self.orbiting = false;
+                    }
+                    (ElementState::Pressed, winit::event::MouseButton::Middle) if !over_ui => {
+                        self.panning = true;
+                    }
+                    (ElementState::Released, winit::event::MouseButton::Middle) => {
+                        self.panning = false;
+                    }
+                    _ => {}
+                }
+
                 match (state, button) {
                     (ElementState::Pressed, winit::event::MouseButton::Left) if !over_ui => {
                         // Lånen tas per fält – metoder på &mut self skulle krocka
@@ -420,12 +520,25 @@ impl ApplicationHandler for Editor {
                 let mut list = match self.mode {
                     Mode::Launcher => ymer_render::RenderList::default(),
                     Mode::Editing => {
-                        build_render_list(&mut self.world, renderer.aspect_ratio(), &self.assets)
+                        // Under körning ska man se spelets kamera; annars
+                        // editorns egen vy.
+                        let view = (!self.state.playing).then(|| {
+                            (
+                                self.camera.view_proj(renderer.aspect_ratio()),
+                                self.camera.position(),
+                            )
+                        });
+                        build_render_list_with_view(
+                            &mut self.world,
+                            renderer.aspect_ratio(),
+                            &self.assets,
+                            view,
+                        )
                     }
                 };
 
                 if let (Mode::Editing, Some(selected)) = (&self.mode, self.state.selected) {
-                    let camera = {
+                    let camera = if self.state.playing {
                         let mut query =
                             self.world.query::<(&ymer_core::Camera, &GlobalTransform)>();
                         query
@@ -433,6 +546,8 @@ impl ApplicationHandler for Editor {
                             .next()
                             .map(|(_, g)| g.translation())
                             .unwrap_or(Vec3::ZERO)
+                    } else {
+                        self.camera.position()
                     };
                     list.overlay_items = gizmo::gizmo_items(
                         &mut self.world,
