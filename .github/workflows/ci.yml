@@ -44,14 +44,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # libvulkan1 är laddaren; mesa-vulkan-drivers ger lavapipe, en
+      # mjukvaru-Vulkan. Utan laddaren hittas ingen drivrutin alls.
       - name: Systemberoenden
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxkbcommon-dev mesa-vulkan-drivers
+          sudo apt-get install -y libx11-dev libxkbcommon-dev libvulkan1 mesa-vulkan-drivers vulkan-tools
+
+      # Bekräfta att en adapter finns innan vi skyller ett fel på motorn.
+      # VK_ICD_FILENAMES sätts medvetet inte: filnamnet skiljer mellan
+      # Mesa-versioner (lvp_icd.json respektive lvp_icd.x86_64.json), och
+      # laddaren hittar alla installerade ICD:er på egen hand.
+      - name: Kontrollera Vulkan
+        run: vulkaninfo --summary | head -30
 
       - name: Headless-rendering
-        env:
-          VK_ICD_FILENAMES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
         run: |
           cargo run --features ymer-runtime/demo -p ymer-runtime --example headless
           cargo run --features ymer-runtime/demo -p ymer-runtime --example scene_roundtrip
