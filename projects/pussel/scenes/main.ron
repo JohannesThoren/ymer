@@ -1,0 +1,422 @@
+Scene(
+  entities: [
+    SceneEntity(
+      id: 1,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-0"),
+        "Transform": (translation:(0.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 2,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-1"),
+        "Transform": (translation:(1.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 3,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-2"),
+        "Transform": (translation:(2.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 4,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-3"),
+        "Transform": (translation:(3.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 5,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-4"),
+        "Transform": (translation:(4.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 6,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-5"),
+        "Transform": (translation:(5.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 7,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-6"),
+        "Transform": (translation:(6.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 8,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-7"),
+        "Transform": (translation:(7.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 9,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 0-8"),
+        "Transform": (translation:(8.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 10,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 1-0"),
+        "Transform": (translation:(0.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 11,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-1"),
+        "Transform": (translation:(1.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 12,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-2"),
+        "Transform": (translation:(2.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 13,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-3"),
+        "Transform": (translation:(3.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 14,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-4"),
+        "Transform": (translation:(4.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 15,
+      components: {
+        "MeshInstance": (mesh:"models/barrel.glb#barrel",texture:"models/barrel.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Låda 1"),
+        "Transform": (translation:(4.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 16,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-5"),
+        "Transform": (translation:(5.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 17,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-6"),
+        "Transform": (translation:(6.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 18,
+      components: {
+        "MeshInstance": (mesh:"models/trap.glb#trap",texture:"models/trap.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Platta 1"),
+        "Transform": (translation:(6.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 19,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 1-7"),
+        "Transform": (translation:(7.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 20,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 1-8"),
+        "Transform": (translation:(8.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 21,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 2-0"),
+        "Transform": (translation:(0.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 22,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-1"),
+        "Transform": (translation:(1.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 23,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-2"),
+        "Transform": (translation:(2.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 24,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-3"),
+        "Transform": (translation:(3.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 25,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-4"),
+        "Transform": (translation:(4.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 26,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-5"),
+        "Transform": (translation:(5.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 27,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-6"),
+        "Transform": (translation:(6.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 28,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 2-7"),
+        "Transform": (translation:(7.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 29,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 2-8"),
+        "Transform": (translation:(8.0,0.0,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 30,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 3-0"),
+        "Transform": (translation:(0.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 31,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-1"),
+        "Transform": (translation:(1.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 32,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-2"),
+        "Transform": (translation:(2.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 33,
+      components: {
+        "MeshInstance": (mesh:"models/barrel.glb#barrel",texture:"models/barrel.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Låda 2"),
+        "Transform": (translation:(2.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 34,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-3"),
+        "Transform": (translation:(3.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 35,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-4"),
+        "Transform": (translation:(4.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 36,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-5"),
+        "Transform": (translation:(5.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 37,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-6"),
+        "Transform": (translation:(6.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 38,
+      components: {
+        "MeshInstance": (mesh:"models/gate.glb#door",texture:"models/gate.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Dörr 1"),
+        "Transform": (translation:(6.0,0.0,3.0),rotation:(0.0,0.70710677,0.0,0.70710677),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 39,
+      components: {
+        "MeshInstance": (mesh:"models/floor.glb#floor",texture:"models/floor.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Golv 3-7"),
+        "Transform": (translation:(7.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 40,
+      components: {
+        "MeshInstance": (mesh:"models/coin.glb#coin",texture:"models/coin.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Mål 1"),
+        "Transform": (translation:(7.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 41,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 3-8"),
+        "Transform": (translation:(8.0,0.0,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 42,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-0"),
+        "Transform": (translation:(0.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 43,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-1"),
+        "Transform": (translation:(1.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 44,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-2"),
+        "Transform": (translation:(2.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 45,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-3"),
+        "Transform": (translation:(3.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 46,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-4"),
+        "Transform": (translation:(4.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 47,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-5"),
+        "Transform": (translation:(5.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 48,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-6"),
+        "Transform": (translation:(6.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 49,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-7"),
+        "Transform": (translation:(7.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 50,
+      components: {
+        "MeshInstance": (mesh:"models/wall.glb#wall",texture:"models/wall.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Vägg 4-8"),
+        "Transform": (translation:(8.0,0.0,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 51,
+      parent: Some(52),
+      components: {
+        "MeshInstance": (mesh:"models/character-human.glb#head-mesh",texture:"models/character-human.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Spelare huvud"),
+        "Transform": (translation:(0.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+    SceneEntity(
+      id: 52,
+      components: {
+        "MeshInstance": (mesh:"models/character-human.glb#body-mesh",texture:"models/character-human.glb#tex0",color:(r:1.0,g:1.0,b:1.0,a:1.0)),
+        "Name": ("Spelare"),
+        "Script": ("pussel.ts"),
+        "Transform": (translation:(2.0,0.0,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+  ],
+)

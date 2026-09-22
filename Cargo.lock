@@ -3713,6 +3713,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pussel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy_ecs",
+ "env_logger",
+ "image",
+ "log",
+ "pollster",
+ "ymer-core",
+ "ymer-render",
+ "ymer-runtime",
+ "ymer-scene",
+]
+
+[[package]]
 name = "pxfm"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"

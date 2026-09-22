@@ -1,0 +1,18 @@
+[package]
+name = "pussel"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+
+[dependencies]
+ymer-core = { workspace = true }
+ymer-render = { workspace = true }
+ymer-scene = { workspace = true }
+ymer-runtime = { workspace = true }
+bevy_ecs = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+pollster = { workspace = true }
+image = { workspace = true }
