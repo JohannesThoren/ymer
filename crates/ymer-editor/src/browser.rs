@@ -176,7 +176,54 @@ impl FileBrowser {
         }
 
         std::fs::copy(source, &target)?;
+        Self::copy_model_resources(source, &target)?;
         Ok(target)
+    }
+
+    /// En modellfil är sällan ensam. En `.gltf` är bara JSON med geometrin
+    /// i en `.bin` bredvid och texturerna i bildfiler bredvid den – men
+    /// även en `.glb` kan peka ut sina bilder, trots att formatet finns
+    /// just för att bädda in allt. Kenneys paket gör precis det.
+    ///
+    /// Kopieras bara den utpekade filen hamnar modellen i projektet utan
+    /// sina bilder och ritas tyst med den vita 1x1-pixeln, alltså helt
+    /// färglös. Sökvägarna behåller sin form relativt modellen, så att
+    /// `uri`-fälten fortsätter peka rätt.
+    fn copy_model_resources(source: &Path, target: &Path) -> Result<()> {
+        let Some(document) = read_gltf_json(source)? else {
+            return Ok(());
+        };
+        let (Some(source_dir), Some(target_dir)) = (source.parent(), target.parent()) else {
+            return Ok(());
+        };
+
+        for uri in gltf_uris(&document) {
+            // Inbäddad data och webbadresser har ingen fil att kopiera.
+            if uri.starts_with("data:") || uri.contains("://") {
+                continue;
+            }
+            let relative = PathBuf::from(percent_decode(&uri));
+            if relative.is_absolute() || relative.components().any(|c| c.as_os_str() == "..") {
+                // Projektet ska vara flyttbart; en fil vi lägger utanför
+                // roten hade brutit det löftet.
+                log::warn!(
+                    "{}: hoppar över {uri} (utanför modellens katalog)",
+                    source.display()
+                );
+                continue;
+            }
+            let from = source_dir.join(&relative);
+            if !from.is_file() {
+                log::warn!("{}: {uri} saknas", source.display());
+                continue;
+            }
+            let to = target_dir.join(&relative);
+            if let Some(parent) = to.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(&from, &to)?;
+        }
+        Ok(())
     }
 
     pub fn delete(&mut self, path: &Path) -> Result<()> {
@@ -191,6 +238,88 @@ impl FileBrowser {
         }
         Ok(())
     }
+}
+
+/// JSON-dokumentet ur en modellfil, eller None om filen inte är en modell.
+///
+/// En `.gltf` *är* JSON. En `.glb` är en binär behållare: 12 byte huvud,
+/// sedan chunkar, och den första är alltid JSON:en.
+fn read_gltf_json(path: &Path) -> Result<Option<serde_json::Value>> {
+    let extension = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_lowercase)
+        .unwrap_or_default();
+
+    let text = match extension.as_str() {
+        "gltf" => std::fs::read_to_string(path)?,
+        "glb" => {
+            let bytes = std::fs::read(path)?;
+            let Some(json) = glb_json_chunk(&bytes) else {
+                log::warn!("{}: ser inte ut som en glb", path.display());
+                return Ok(None);
+            };
+            json
+        }
+        _ => return Ok(None),
+    };
+
+    serde_json::from_str(&text)
+        .map(Some)
+        .map_err(|err| anyhow!("{}: ogiltig gltf: {err}", path.display()))
+}
+
+/// Plockar ut JSON-chunken ur en glb. `None` om magin eller längderna
+/// inte stämmer – en trasig fil ska inte få importen att fallera, den
+/// hanteras av glTF-läsaren senare.
+fn glb_json_chunk(bytes: &[u8]) -> Option<String> {
+    if bytes.len() < 20 || &bytes[0..4] != b"glTF" {
+        return None;
+    }
+    let length = u32::from_le_bytes(bytes[12..16].try_into().ok()?) as usize;
+    if &bytes[16..20] != b"JSON" {
+        return None;
+    }
+    let end = 20usize.checked_add(length)?;
+    let chunk = bytes.get(20..end)?;
+    Some(String::from_utf8_lossy(chunk).into_owned())
+}
+
+/// Alla `uri`-fält i en gltf: buffertar och bilder. Fältet heter likadant
+/// på båda, så en enkel genomgång av de två listorna räcker.
+fn gltf_uris(document: &serde_json::Value) -> Vec<String> {
+    let mut found = Vec::new();
+    for key in ["buffers", "images"] {
+        let Some(list) = document.get(key).and_then(serde_json::Value::as_array) else {
+            continue;
+        };
+        for item in list {
+            if let Some(uri) = item.get("uri").and_then(serde_json::Value::as_str) {
+                found.push(uri.to_string());
+            }
+        }
+    }
+    found
+}
+
+/// gltf-filer rymmer procentkodade sökvägar ("min%20textur.png").
+fn percent_decode(uri: &str) -> String {
+    let bytes = uri.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%'
+            && let Some(hex) = uri.get(index + 1..index + 3)
+            && let Ok(byte) = u8::from_str_radix(hex, 16)
+        {
+            out.push(byte);
+            index += 3;
+            continue;
+        }
+        out.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 const NEW_SCRIPT: &str = r#"// Nytt skript. Sätt en Script-komponent på en entitet och peka hit.
@@ -285,5 +414,59 @@ mod tests {
         assert_ne!(first, second);
         assert_eq!(second.parent().unwrap(), root.join("models"));
         assert!(first.exists() && second.exists());
+    }
+
+    #[test]
+    fn glb_tar_med_sin_externa_textur() {
+        // En .glb bäddar normalt in allt, men behöver inte: Kenneys paket
+        // lägger geometrin i binärchunken och pekar ut colormap.png som en
+        // fil bredvid. Kopieras bara .glb-filen laddas modellen utan sin
+        // textur och ritas färglös.
+        let root = project("glb_resurser");
+        let source_dir = root.join("utanfor");
+        std::fs::create_dir_all(source_dir.join("Textures")).unwrap();
+        std::fs::write(source_dir.join("Textures/color map.png"), b"PNG").unwrap();
+
+        let json =
+            br#"{"images":[{"uri":"Textures/color%20map.png"}],"buffers":[{"byteLength":4}]}"#;
+        let mut glb = Vec::new();
+        glb.extend_from_slice(b"glTF");
+        glb.extend_from_slice(&2u32.to_le_bytes());
+        glb.extend_from_slice(&((12 + 8 + json.len()) as u32).to_le_bytes());
+        glb.extend_from_slice(&(json.len() as u32).to_le_bytes());
+        glb.extend_from_slice(b"JSON");
+        glb.extend_from_slice(json);
+        std::fs::write(source_dir.join("vagg.glb"), &glb).unwrap();
+
+        let mut browser = FileBrowser::new(&root);
+        let placed = browser.import(&source_dir.join("vagg.glb")).unwrap();
+
+        let models = root.join("models");
+        assert_eq!(placed.parent().unwrap(), models);
+        assert!(
+            models.join("Textures/color map.png").is_file(),
+            "texturen följde inte med, och sökvägen ska behålla sin form"
+        );
+    }
+
+    #[test]
+    fn gltf_tar_med_sina_filer() {
+        let root = project("gltf_resurser");
+        let source_dir = root.join("utanfor");
+        std::fs::create_dir_all(&source_dir).unwrap();
+        std::fs::write(
+            source_dir.join("stol.gltf"),
+            br#"{"buffers":[{"uri":"stol.bin"}],"images":[{"uri":"data:image/png;base64,AAAA"}]}"#,
+        )
+        .unwrap();
+        std::fs::write(source_dir.join("stol.bin"), b"geometri").unwrap();
+
+        let mut browser = FileBrowser::new(&root);
+        browser.import(&source_dir.join("stol.gltf")).unwrap();
+
+        assert!(
+            root.join("models/stol.bin").is_file(),
+            "bufferten följde inte med"
+        );
     }
 }
