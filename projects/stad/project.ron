@@ -1,0 +1,4 @@
+(
+    name: "Staden",
+    start_scene: "scenes/main.ron",
+)

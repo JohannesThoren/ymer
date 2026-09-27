@@ -1,17 +1,28 @@
-//! Ett litet stadsbyggarspel.
+//! Ett litet stadsbyggarspel, byggt på motorns egna delar.
 //!
-//! Rutnät i xz-planet, ett hus per ruta. Bostäder ger platser, invånare
-//! flyttar in, arbetsplatser behöver personal och ger guld, guld köper
-//! fler hus. Hela slingan ryms i `tick`, som är ren logik utan fönster –
-//! därför går ekonomin att testa headless.
+//! Arbetsfördelningen är medveten:
+//!
+//! * **Scenen** (`scenes/main.ron`) är kartan. Den laddas som vilken scen
+//!   som helst och går att öppna i editorn.
+//! * **Skriptet** (`scripts/ekonomi.ts`) äger reglerna: inflyttning,
+//!   bemanning, inkomst. Att ändra vad en butik drar in är en filändring,
+//!   inte en omkompilering – och hot reload gäller.
+//! * **Rust** gör det skript inte når: plocket från mus till ruta, som
+//!   behöver kameramatrisen, och gränssnittet, som är egui.
+//!
+//! `Byggnad` och `Stadskassa` är riktiga komponenter i typregistret. Det
+//! är det som gör resten möjligt: de serialiseras till scenfilen, syns i
+//! editorns inspector, och skript ser dem.
 //!
 //! Grafiken är Kenneys "City Kit (Commercial)" (CC0), se
 //! `models/KENNEY-LICENSE.txt`.
 
-use std::collections::BTreeMap;
-
 use bevy_ecs::prelude::*;
-use ymer_core::{Color, EntityName, GlobalTransform, Mat4, MeshInstance, Transform, Vec2, Vec3};
+use serde::{Deserialize, Serialize};
+use ymer_core::{
+    Color, EntityName, GlobalTransform, Mat4, MeshInstance, Script, Transform, Vec2, Vec3,
+};
+use ymer_scene::TypeRegistry;
 
 pub mod ui;
 
@@ -19,16 +30,25 @@ pub mod ui;
 pub const CELL: f32 = 1.0;
 /// Halva bredden på kartan i rutor: -HALF..=HALF i båda riktningar.
 pub const HALF: i32 = 5;
+/// Skriptet som driver ekonomin. Ligger på varje byggnad *och* på
+/// stadshuset, eftersom skript kör som system: ett anrop per frame får
+/// hela listan, så en enda `update` ser både byggnaderna och kassan.
+pub const SCRIPT: &str = "ekonomi.ts";
 
-/// En ruta i rutnätet.
 pub type Tile = (i32, i32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Kind {
     Hus,
     Butik,
     Marknad,
     Kontor,
+}
+
+impl Default for Kind {
+    fn default() -> Self {
+        Kind::Hus
+    }
 }
 
 impl Kind {
@@ -43,6 +63,9 @@ impl Kind {
         }
     }
 
+    /// Kostnaden är Rusts, eftersom UI:t visar den innan något byggts och
+    /// skriptet aldrig ser ett bygge som inte blev av. Vad byggnaden
+    /// sedan *gör* bestämmer skriptet.
     pub fn kostnad(self) -> f32 {
         match self {
             Kind::Hus => 50.0,
@@ -52,40 +75,12 @@ impl Kind {
         }
     }
 
-    /// Boendeplatser byggnaden tillför.
-    pub fn platser(self) -> u32 {
-        match self {
-            Kind::Hus => 4,
-            _ => 0,
-        }
-    }
-
-    /// Hur många som behövs för att driva den.
-    pub fn jobb(self) -> u32 {
-        match self {
-            Kind::Hus => 0,
-            Kind::Butik => 2,
-            Kind::Marknad => 5,
-            Kind::Kontor => 12,
-        }
-    }
-
-    /// Guld per sekund när den är fullt bemannad.
-    pub fn inkomst(self) -> f32 {
-        match self {
-            Kind::Hus => 0.0,
-            Kind::Butik => 2.0,
-            Kind::Marknad => 5.0,
-            Kind::Kontor => 14.0,
-        }
-    }
-
     pub fn beskrivning(self) -> &'static str {
         match self {
-            Kind::Hus => "Ger 4 boendeplatser. Invånare flyttar in av sig själva.",
-            Kind::Butik => "2 jobb, 2 guld/s när den är bemannad.",
-            Kind::Marknad => "5 jobb, 5 guld/s när den är bemannad.",
-            Kind::Kontor => "12 jobb, 14 guld/s när det är bemannat.",
+            Kind::Hus => "Ger boendeplatser. Invånare flyttar in av sig själva.",
+            Kind::Butik => "Liten arbetsplats. Ger guld när den är bemannad.",
+            Kind::Marknad => "Större arbetsplats, mer guld och fler jobb.",
+            Kind::Kontor => "Stor arbetsplats. Kräver många invånare.",
         }
     }
 
@@ -112,99 +107,97 @@ impl Kind {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+/// En byggnad på kartan.
+///
+/// `platser`, `jobb` och `inkomst` sätts av skriptet vid första ticket –
+/// Rust vet bara *vilken sorts* hus det är, inte vad det gör. Det gör att
+/// balansen kan ändras i en textfil medan spelet kör.
+#[derive(Component, Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Byggnad {
     pub kind: Kind,
-    pub tile: Tile,
+    pub tile_x: i32,
+    pub tile_z: i32,
+    /// Boendeplatser byggnaden bidrar med.
+    pub platser: u32,
+    /// Arbetstillfällen den erbjuder.
+    pub jobb: u32,
+    /// Guld per sekund vid full bemanning.
+    pub inkomst: f32,
+    /// Hur många som faktiskt arbetar här just nu. Skriptets bokföring.
+    pub bemanning: u32,
 }
 
-/// Marken. Egen komponent så att plocket kan skilja mark från byggnad.
-#[derive(Component, Debug, Clone, Copy)]
-pub struct Mark {
-    pub tile: Tile,
-}
-
-/// Stadens tillstånd. Allt spelet vet om sig självt.
-#[derive(Resource, Debug, Clone)]
-pub struct Stad {
-    pub guld: f32,
-    /// Invånare som faktiskt flyttat in, växer mot `platser`.
-    pub invanare: f32,
-    /// Vad spelaren valt att bygga.
-    pub vald: Kind,
-    /// Markerad byggnad, om någon.
-    pub markerad: Option<Tile>,
-    /// Senaste meddelandet till spelaren, t.ex. varför ett bygge nekades.
-    pub status: String,
-    upptagna: BTreeMap<Tile, Kind>,
-}
-
-impl Default for Stad {
-    fn default() -> Self {
-        Self {
-            guld: 200.0,
-            invanare: 0.0,
-            vald: Kind::Hus,
-            markerad: None,
-            status: "Bygg ett hus för att få invånare.".to_string(),
-            upptagna: BTreeMap::new(),
-        }
+impl Byggnad {
+    pub fn tile(&self) -> Tile {
+        (self.tile_x, self.tile_z)
     }
 }
 
-/// Sammanräknad ställning, det HUD:en visar.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Nyckeltal {
+/// Stadens gemensamma räkenskaper, på en egen entitet ("Stadshuset").
+///
+/// Skript kan inte läsa andra entiteters komponenter – men de kör som
+/// system, så en enda `update` får hela listan över entiteter som bär
+/// skriptet. Ligger kassan på en av dem ser skriptet både byggnaderna
+/// och kassan i samma anrop, och kan bokföra mellan dem.
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Stadskassa {
+    pub guld: f32,
+    pub invanare: f32,
+    /// Summerat av skriptet varje frame, läst av HUD:en.
     pub platser: u32,
     pub jobb: u32,
     pub sysselsatta: u32,
     pub inkomst: f32,
 }
 
-impl Stad {
-    pub fn upptagen(&self, tile: Tile) -> Option<Kind> {
-        self.upptagna.get(&tile).copied()
-    }
-
-    pub fn antal(&self) -> usize {
-        self.upptagna.len()
-    }
-
-    pub fn nyckeltal(&self) -> Nyckeltal {
-        let mut platser = 0;
-        let mut jobb = 0;
-        for kind in self.upptagna.values() {
-            platser += kind.platser();
-            jobb += kind.jobb();
-        }
-
-        // Arbetsplatserna bemannas i tur och ordning; den sista kan stå
-        // halvbemannad och ger då bara sin andel.
-        let arbetsfor = self.invanare.floor() as u32;
-        let sysselsatta = arbetsfor.min(jobb);
-
-        let mut kvar = sysselsatta;
-        let mut inkomst = 0.0;
-        for kind in self.upptagna.values() {
-            let behov = kind.jobb();
-            if behov == 0 {
-                continue;
-            }
-            let fick = kvar.min(behov);
-            kvar -= fick;
-            inkomst += kind.inkomst() * (fick as f32 / behov as f32);
-        }
-
-        Nyckeltal {
-            platser,
-            jobb,
-            sysselsatta,
-            inkomst,
+impl Default for Stadskassa {
+    fn default() -> Self {
+        Self {
+            guld: 200.0,
+            invanare: 0.0,
+            platser: 0,
+            jobb: 0,
+            sysselsatta: 0,
+            inkomst: 0.0,
         }
     }
 }
 
-/// Varför ett bygge inte gick.
+/// Marken. Egen komponent så att plocket kan skilja mark från byggnad.
+#[derive(Component, Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct Mark {
+    pub tile_x: i32,
+    pub tile_z: i32,
+}
+
+/// Registrerar spelets komponenter utöver motorns inbyggda.
+///
+/// Utan det här blir `Byggnad` osynlig för både scenfilen och skriptet –
+/// typregistret är den enda vägen in för något som inte är motorns eget.
+pub fn register_types(registry: &mut TypeRegistry) {
+    registry.register::<Byggnad>("Byggnad");
+    registry.register::<Stadskassa>("Stadskassa");
+    registry.register::<Mark>("Mark");
+}
+
+/// Vad spelaren håller på med. Rent UI-tillstånd, inget skriptet rör.
+#[derive(Resource, Debug, Clone)]
+pub struct Val {
+    pub vald: Kind,
+    pub markerad: Option<Tile>,
+    pub status: String,
+}
+
+impl Default for Val {
+    fn default() -> Self {
+        Self {
+            vald: Kind::Hus,
+            markerad: None,
+            status: "Bygg ett hus för att få invånare.".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Neka {
     UtanforKartan,
@@ -226,19 +219,46 @@ pub fn inom_kartan(tile: Tile) -> bool {
     tile.0 >= -HALF && tile.0 <= HALF && tile.1 >= -HALF && tile.1 <= HALF
 }
 
-/// Bygger på en ruta. Returnerar entiteten, eller varför det inte gick.
+/// Byggnaden på en ruta, om någon.
+pub fn byggnad_pa(world: &mut World, tile: Tile) -> Option<(Entity, Byggnad)> {
+    let mut query = world.query::<(Entity, &Byggnad)>();
+    query
+        .iter(world)
+        .find(|(_, b)| b.tile() == tile)
+        .map(|(e, b)| (e, *b))
+}
+
+/// Kassans entitet. Stadshuset finns i scenen, så den ska alltid gå att
+/// hitta – men ett spel som laddat en trasig scen ska inte krascha.
+pub fn kassa_entity(world: &mut World) -> Option<Entity> {
+    let mut query = world.query_filtered::<Entity, With<Stadskassa>>();
+    query.iter(world).next()
+}
+
+pub fn kassa(world: &mut World) -> Stadskassa {
+    kassa_entity(world)
+        .and_then(|e| world.get::<Stadskassa>(e).copied())
+        .unwrap_or_default()
+}
+
+/// Bygger på en ruta. Drar guldet och sätter komponenten; vad byggnaden
+/// *gör* fyller skriptet i vid nästa tick.
 pub fn bygg(world: &mut World, tile: Tile, kind: Kind) -> Result<Entity, Neka> {
-    {
-        let stad = world.resource::<Stad>();
-        if !inom_kartan(tile) {
-            return Err(Neka::UtanforKartan);
-        }
-        if stad.upptagen(tile).is_some() {
-            return Err(Neka::Upptaget);
-        }
-        if stad.guld < kind.kostnad() {
-            return Err(Neka::ForDyrt);
-        }
+    if !inom_kartan(tile) {
+        return Err(Neka::UtanforKartan);
+    }
+    if byggnad_pa(world, tile).is_some() {
+        return Err(Neka::Upptaget);
+    }
+
+    let Some(kassa_entity) = kassa_entity(world) else {
+        return Err(Neka::ForDyrt);
+    };
+    let guld = world
+        .get::<Stadskassa>(kassa_entity)
+        .map_or(0.0, |k| k.guld);
+    if guld < kind.kostnad() {
+        return Err(Neka::ForDyrt);
     }
 
     let (mesh, texture) = kind.asset();
@@ -252,72 +272,44 @@ pub fn bygg(world: &mut World, tile: Tile, kind: Kind) -> Result<Entity, Neka> {
                 texture: texture.to_string(),
                 color: Color::WHITE,
             },
-            Byggnad { kind, tile },
+            Byggnad {
+                kind,
+                tile_x: tile.0,
+                tile_z: tile.1,
+                ..Default::default()
+            },
+            // Skriptet kör som system: byggnaden måste bära det för att
+            // komma med i listan skriptet får.
+            Script::new(SCRIPT),
         ))
         .id();
 
-    let mut stad = world.resource_mut::<Stad>();
-    stad.guld -= kind.kostnad();
-    stad.upptagna.insert(tile, kind);
-    stad.status = format!("{} byggt.", kind.namn());
+    if let Some(mut k) = world.get_mut::<Stadskassa>(kassa_entity) {
+        k.guld -= kind.kostnad();
+    }
     Ok(entity)
 }
 
 /// River byggnaden på en ruta och betalar tillbaka halva kostnaden.
 pub fn riv(world: &mut World, tile: Tile) -> bool {
-    let Some(kind) = world.resource::<Stad>().upptagen(tile) else {
+    let Some((entity, byggnad)) = byggnad_pa(world, tile) else {
         return false;
     };
+    world.despawn(entity);
 
-    let offer: Vec<Entity> = {
-        let mut query = world.query::<(Entity, &Byggnad)>();
-        query
-            .iter(world)
-            .filter(|(_, b)| b.tile == tile)
-            .map(|(e, _)| e)
-            .collect()
-    };
-    for entity in offer {
-        world.despawn(entity);
+    if let Some(kassa_entity) = kassa_entity(world)
+        && let Some(mut k) = world.get_mut::<Stadskassa>(kassa_entity)
+    {
+        k.guld += byggnad.kind.kostnad() * 0.5;
     }
-
-    let mut stad = world.resource_mut::<Stad>();
-    stad.guld += kind.kostnad() * 0.5;
-    stad.upptagna.remove(&tile);
-    if stad.markerad == Some(tile) {
-        stad.markerad = None;
-    }
-    stad.status = format!("{} rivet, halva kostnaden tillbaka.", kind.namn());
     true
 }
 
-/// Ett tidssteg: invånare flyttar in och arbetsplatserna betalar ut.
+/// Bygger kartan i en värld: mark, stadshus och inget mer.
 ///
-/// Ren funktion av `dt`, utan fönster eller klocka, så att ett test kan
-/// stega ekonomin hur snabbt det vill.
-pub fn tick(stad: &mut Stad, dt: f32) {
-    let tal = stad.nyckeltal();
-
-    // Inflyttning: en person var halva sekund så länge det finns plats.
-    let tak = tal.platser as f32;
-    if stad.invanare < tak {
-        stad.invanare = (stad.invanare + dt * 2.0).min(tak);
-    } else if stad.invanare > tak {
-        // Rivet boende: folk flyttar ut direkt.
-        stad.invanare = tak;
-    }
-
-    stad.guld += tal.inkomst * dt;
-}
-
-/// Systemversionen, för `App::add_systems`.
-pub fn ekonomi_system(mut stad: ResMut<Stad>, time: Res<ymer_core::Time>) {
-    let dt = time.delta_seconds();
-    tick(&mut stad, dt);
-}
-
-/// Lägger ut marken. Kallas en gång vid uppstart.
-pub fn bygg_mark(world: &mut World) -> usize {
+/// Körs av `generate_level` för att skriva scenfilen. Spelet laddar
+/// scenen i stället för att anropa den här – kartan är data.
+pub fn bygg_karta(world: &mut World) -> usize {
     let mut count = 0;
     for x in -HALF..=HALF {
         for z in -HALF..=HALF {
@@ -337,12 +329,25 @@ pub fn bygg_mark(world: &mut World) -> usize {
                 },
                 GlobalTransform::default(),
                 MeshInstance::new(ymer_core::BUILTIN_CUBE, color),
-                Mark { tile: (x, z) },
+                Mark {
+                    tile_x: x,
+                    tile_z: z,
+                },
             ));
             count += 1;
         }
     }
-    count
+
+    // Stadshuset bär kassan och skriptet. Det har ingen mesh: det är
+    // bokföringen, inte ett hus på kartan.
+    world.spawn((
+        EntityName::new("Stadshuset"),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        GlobalTransform::default(),
+        Stadskassa::default(),
+        Script::new(SCRIPT),
+    ));
+    count + 1
 }
 
 /// Rutan muspekaren pekar på, eller None om strålen missar marken.
@@ -374,13 +379,11 @@ pub fn ruta_under_musen(view_proj: Mat4, mus: Vec2, skarm: Vec2) -> Option<Tile>
     let bortre = unproject(1.0)?;
     let riktning = bortre - nara;
     if riktning.y.abs() < 1e-6 {
-        // Strålen är parallell med marken.
         return None;
     }
 
     let t = -nara.y / riktning.y;
     if t < 0.0 {
-        // Marken ligger bakom kameran.
         return None;
     }
     let traff = nara + riktning * t;

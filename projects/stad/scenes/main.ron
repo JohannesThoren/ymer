@@ -1,0 +1,1102 @@
+Scene(
+  entities: [
+    SceneEntity(
+      id: 1,
+      components: {
+        "Mark": (tile_x:-5,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,-5"),
+        "Transform": (translation:(-5.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 2,
+      components: {
+        "Mark": (tile_x:-5,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -5,-4"),
+        "Transform": (translation:(-5.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 3,
+      components: {
+        "Mark": (tile_x:-5,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,-3"),
+        "Transform": (translation:(-5.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 4,
+      components: {
+        "Mark": (tile_x:-5,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -5,-2"),
+        "Transform": (translation:(-5.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 5,
+      components: {
+        "Mark": (tile_x:-5,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,-1"),
+        "Transform": (translation:(-5.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 6,
+      components: {
+        "Mark": (tile_x:-5,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -5,0"),
+        "Transform": (translation:(-5.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 7,
+      components: {
+        "Mark": (tile_x:-5,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,1"),
+        "Transform": (translation:(-5.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 8,
+      components: {
+        "Mark": (tile_x:-5,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -5,2"),
+        "Transform": (translation:(-5.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 9,
+      components: {
+        "Mark": (tile_x:-5,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,3"),
+        "Transform": (translation:(-5.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 10,
+      components: {
+        "Mark": (tile_x:-5,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -5,4"),
+        "Transform": (translation:(-5.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 11,
+      components: {
+        "Mark": (tile_x:-5,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -5,5"),
+        "Transform": (translation:(-5.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 12,
+      components: {
+        "Mark": (tile_x:-4,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,-5"),
+        "Transform": (translation:(-4.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 13,
+      components: {
+        "Mark": (tile_x:-4,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -4,-4"),
+        "Transform": (translation:(-4.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 14,
+      components: {
+        "Mark": (tile_x:-4,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,-3"),
+        "Transform": (translation:(-4.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 15,
+      components: {
+        "Mark": (tile_x:-4,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -4,-2"),
+        "Transform": (translation:(-4.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 16,
+      components: {
+        "Mark": (tile_x:-4,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,-1"),
+        "Transform": (translation:(-4.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 17,
+      components: {
+        "Mark": (tile_x:-4,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -4,0"),
+        "Transform": (translation:(-4.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 18,
+      components: {
+        "Mark": (tile_x:-4,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,1"),
+        "Transform": (translation:(-4.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 19,
+      components: {
+        "Mark": (tile_x:-4,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -4,2"),
+        "Transform": (translation:(-4.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 20,
+      components: {
+        "Mark": (tile_x:-4,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,3"),
+        "Transform": (translation:(-4.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 21,
+      components: {
+        "Mark": (tile_x:-4,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -4,4"),
+        "Transform": (translation:(-4.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 22,
+      components: {
+        "Mark": (tile_x:-4,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -4,5"),
+        "Transform": (translation:(-4.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 23,
+      components: {
+        "Mark": (tile_x:-3,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,-5"),
+        "Transform": (translation:(-3.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 24,
+      components: {
+        "Mark": (tile_x:-3,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -3,-4"),
+        "Transform": (translation:(-3.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 25,
+      components: {
+        "Mark": (tile_x:-3,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,-3"),
+        "Transform": (translation:(-3.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 26,
+      components: {
+        "Mark": (tile_x:-3,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -3,-2"),
+        "Transform": (translation:(-3.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 27,
+      components: {
+        "Mark": (tile_x:-3,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,-1"),
+        "Transform": (translation:(-3.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 28,
+      components: {
+        "Mark": (tile_x:-3,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -3,0"),
+        "Transform": (translation:(-3.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 29,
+      components: {
+        "Mark": (tile_x:-3,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,1"),
+        "Transform": (translation:(-3.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 30,
+      components: {
+        "Mark": (tile_x:-3,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -3,2"),
+        "Transform": (translation:(-3.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 31,
+      components: {
+        "Mark": (tile_x:-3,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,3"),
+        "Transform": (translation:(-3.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 32,
+      components: {
+        "Mark": (tile_x:-3,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -3,4"),
+        "Transform": (translation:(-3.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 33,
+      components: {
+        "Mark": (tile_x:-3,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -3,5"),
+        "Transform": (translation:(-3.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 34,
+      components: {
+        "Mark": (tile_x:-2,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,-5"),
+        "Transform": (translation:(-2.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 35,
+      components: {
+        "Mark": (tile_x:-2,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -2,-4"),
+        "Transform": (translation:(-2.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 36,
+      components: {
+        "Mark": (tile_x:-2,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,-3"),
+        "Transform": (translation:(-2.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 37,
+      components: {
+        "Mark": (tile_x:-2,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -2,-2"),
+        "Transform": (translation:(-2.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 38,
+      components: {
+        "Mark": (tile_x:-2,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,-1"),
+        "Transform": (translation:(-2.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 39,
+      components: {
+        "Mark": (tile_x:-2,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -2,0"),
+        "Transform": (translation:(-2.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 40,
+      components: {
+        "Mark": (tile_x:-2,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,1"),
+        "Transform": (translation:(-2.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 41,
+      components: {
+        "Mark": (tile_x:-2,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -2,2"),
+        "Transform": (translation:(-2.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 42,
+      components: {
+        "Mark": (tile_x:-2,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,3"),
+        "Transform": (translation:(-2.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 43,
+      components: {
+        "Mark": (tile_x:-2,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -2,4"),
+        "Transform": (translation:(-2.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 44,
+      components: {
+        "Mark": (tile_x:-2,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -2,5"),
+        "Transform": (translation:(-2.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 45,
+      components: {
+        "Mark": (tile_x:-1,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,-5"),
+        "Transform": (translation:(-1.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 46,
+      components: {
+        "Mark": (tile_x:-1,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -1,-4"),
+        "Transform": (translation:(-1.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 47,
+      components: {
+        "Mark": (tile_x:-1,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,-3"),
+        "Transform": (translation:(-1.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 48,
+      components: {
+        "Mark": (tile_x:-1,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -1,-2"),
+        "Transform": (translation:(-1.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 49,
+      components: {
+        "Mark": (tile_x:-1,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,-1"),
+        "Transform": (translation:(-1.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 50,
+      components: {
+        "Mark": (tile_x:-1,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -1,0"),
+        "Transform": (translation:(-1.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 51,
+      components: {
+        "Mark": (tile_x:-1,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,1"),
+        "Transform": (translation:(-1.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 52,
+      components: {
+        "Mark": (tile_x:-1,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -1,2"),
+        "Transform": (translation:(-1.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 53,
+      components: {
+        "Mark": (tile_x:-1,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,3"),
+        "Transform": (translation:(-1.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 54,
+      components: {
+        "Mark": (tile_x:-1,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark -1,4"),
+        "Transform": (translation:(-1.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 55,
+      components: {
+        "Mark": (tile_x:-1,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark -1,5"),
+        "Transform": (translation:(-1.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 56,
+      components: {
+        "Mark": (tile_x:0,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,-5"),
+        "Transform": (translation:(0.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 57,
+      components: {
+        "Mark": (tile_x:0,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 0,-4"),
+        "Transform": (translation:(0.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 58,
+      components: {
+        "Mark": (tile_x:0,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,-3"),
+        "Transform": (translation:(0.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 59,
+      components: {
+        "Mark": (tile_x:0,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 0,-2"),
+        "Transform": (translation:(0.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 60,
+      components: {
+        "Mark": (tile_x:0,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,-1"),
+        "Transform": (translation:(0.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 61,
+      components: {
+        "Mark": (tile_x:0,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 0,0"),
+        "Transform": (translation:(0.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 62,
+      components: {
+        "Mark": (tile_x:0,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,1"),
+        "Transform": (translation:(0.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 63,
+      components: {
+        "Mark": (tile_x:0,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 0,2"),
+        "Transform": (translation:(0.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 64,
+      components: {
+        "Mark": (tile_x:0,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,3"),
+        "Transform": (translation:(0.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 65,
+      components: {
+        "Mark": (tile_x:0,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 0,4"),
+        "Transform": (translation:(0.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 66,
+      components: {
+        "Mark": (tile_x:0,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 0,5"),
+        "Transform": (translation:(0.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 67,
+      components: {
+        "Mark": (tile_x:1,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,-5"),
+        "Transform": (translation:(1.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 68,
+      components: {
+        "Mark": (tile_x:1,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 1,-4"),
+        "Transform": (translation:(1.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 69,
+      components: {
+        "Mark": (tile_x:1,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,-3"),
+        "Transform": (translation:(1.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 70,
+      components: {
+        "Mark": (tile_x:1,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 1,-2"),
+        "Transform": (translation:(1.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 71,
+      components: {
+        "Mark": (tile_x:1,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,-1"),
+        "Transform": (translation:(1.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 72,
+      components: {
+        "Mark": (tile_x:1,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 1,0"),
+        "Transform": (translation:(1.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 73,
+      components: {
+        "Mark": (tile_x:1,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,1"),
+        "Transform": (translation:(1.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 74,
+      components: {
+        "Mark": (tile_x:1,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 1,2"),
+        "Transform": (translation:(1.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 75,
+      components: {
+        "Mark": (tile_x:1,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,3"),
+        "Transform": (translation:(1.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 76,
+      components: {
+        "Mark": (tile_x:1,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 1,4"),
+        "Transform": (translation:(1.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 77,
+      components: {
+        "Mark": (tile_x:1,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 1,5"),
+        "Transform": (translation:(1.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 78,
+      components: {
+        "Mark": (tile_x:2,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,-5"),
+        "Transform": (translation:(2.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 79,
+      components: {
+        "Mark": (tile_x:2,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 2,-4"),
+        "Transform": (translation:(2.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 80,
+      components: {
+        "Mark": (tile_x:2,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,-3"),
+        "Transform": (translation:(2.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 81,
+      components: {
+        "Mark": (tile_x:2,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 2,-2"),
+        "Transform": (translation:(2.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 82,
+      components: {
+        "Mark": (tile_x:2,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,-1"),
+        "Transform": (translation:(2.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 83,
+      components: {
+        "Mark": (tile_x:2,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 2,0"),
+        "Transform": (translation:(2.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 84,
+      components: {
+        "Mark": (tile_x:2,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,1"),
+        "Transform": (translation:(2.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 85,
+      components: {
+        "Mark": (tile_x:2,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 2,2"),
+        "Transform": (translation:(2.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 86,
+      components: {
+        "Mark": (tile_x:2,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,3"),
+        "Transform": (translation:(2.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 87,
+      components: {
+        "Mark": (tile_x:2,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 2,4"),
+        "Transform": (translation:(2.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 88,
+      components: {
+        "Mark": (tile_x:2,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 2,5"),
+        "Transform": (translation:(2.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 89,
+      components: {
+        "Mark": (tile_x:3,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,-5"),
+        "Transform": (translation:(3.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 90,
+      components: {
+        "Mark": (tile_x:3,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 3,-4"),
+        "Transform": (translation:(3.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 91,
+      components: {
+        "Mark": (tile_x:3,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,-3"),
+        "Transform": (translation:(3.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 92,
+      components: {
+        "Mark": (tile_x:3,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 3,-2"),
+        "Transform": (translation:(3.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 93,
+      components: {
+        "Mark": (tile_x:3,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,-1"),
+        "Transform": (translation:(3.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 94,
+      components: {
+        "Mark": (tile_x:3,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 3,0"),
+        "Transform": (translation:(3.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 95,
+      components: {
+        "Mark": (tile_x:3,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,1"),
+        "Transform": (translation:(3.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 96,
+      components: {
+        "Mark": (tile_x:3,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 3,2"),
+        "Transform": (translation:(3.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 97,
+      components: {
+        "Mark": (tile_x:3,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,3"),
+        "Transform": (translation:(3.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 98,
+      components: {
+        "Mark": (tile_x:3,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 3,4"),
+        "Transform": (translation:(3.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 99,
+      components: {
+        "Mark": (tile_x:3,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 3,5"),
+        "Transform": (translation:(3.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 100,
+      components: {
+        "Mark": (tile_x:4,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,-5"),
+        "Transform": (translation:(4.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 101,
+      components: {
+        "Mark": (tile_x:4,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 4,-4"),
+        "Transform": (translation:(4.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 102,
+      components: {
+        "Mark": (tile_x:4,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,-3"),
+        "Transform": (translation:(4.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 103,
+      components: {
+        "Mark": (tile_x:4,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 4,-2"),
+        "Transform": (translation:(4.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 104,
+      components: {
+        "Mark": (tile_x:4,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,-1"),
+        "Transform": (translation:(4.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 105,
+      components: {
+        "Mark": (tile_x:4,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 4,0"),
+        "Transform": (translation:(4.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 106,
+      components: {
+        "Mark": (tile_x:4,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,1"),
+        "Transform": (translation:(4.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 107,
+      components: {
+        "Mark": (tile_x:4,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 4,2"),
+        "Transform": (translation:(4.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 108,
+      components: {
+        "Mark": (tile_x:4,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,3"),
+        "Transform": (translation:(4.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 109,
+      components: {
+        "Mark": (tile_x:4,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 4,4"),
+        "Transform": (translation:(4.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 110,
+      components: {
+        "Mark": (tile_x:4,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 4,5"),
+        "Transform": (translation:(4.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 111,
+      components: {
+        "Mark": (tile_x:5,tile_z:-5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,-5"),
+        "Transform": (translation:(5.0,-0.05,-5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 112,
+      components: {
+        "Mark": (tile_x:5,tile_z:-4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 5,-4"),
+        "Transform": (translation:(5.0,-0.05,-4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 113,
+      components: {
+        "Mark": (tile_x:5,tile_z:-3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,-3"),
+        "Transform": (translation:(5.0,-0.05,-3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 114,
+      components: {
+        "Mark": (tile_x:5,tile_z:-2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 5,-2"),
+        "Transform": (translation:(5.0,-0.05,-2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 115,
+      components: {
+        "Mark": (tile_x:5,tile_z:-1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,-1"),
+        "Transform": (translation:(5.0,-0.05,-1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 116,
+      components: {
+        "Mark": (tile_x:5,tile_z:0),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 5,0"),
+        "Transform": (translation:(5.0,-0.05,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 117,
+      components: {
+        "Mark": (tile_x:5,tile_z:1),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,1"),
+        "Transform": (translation:(5.0,-0.05,1.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 118,
+      components: {
+        "Mark": (tile_x:5,tile_z:2),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 5,2"),
+        "Transform": (translation:(5.0,-0.05,2.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 119,
+      components: {
+        "Mark": (tile_x:5,tile_z:3),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,3"),
+        "Transform": (translation:(5.0,-0.05,3.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 120,
+      components: {
+        "Mark": (tile_x:5,tile_z:4),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.34,g:0.43,b:0.27,a:1.0)),
+        "Name": ("Mark 5,4"),
+        "Transform": (translation:(5.0,-0.05,4.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 121,
+      components: {
+        "Mark": (tile_x:5,tile_z:5),
+        "MeshInstance": (mesh:"builtin/cube",texture:"",color:(r:0.38,g:0.47,b:0.3,a:1.0)),
+        "Name": ("Mark 5,5"),
+        "Transform": (translation:(5.0,-0.05,5.0),rotation:(0.0,0.0,0.0,1.0),scale:(0.98,0.1,0.98)),
+      },
+    ),
+    SceneEntity(
+      id: 122,
+      components: {
+        "Name": ("Stadshuset"),
+        "Script": ("ekonomi.ts"),
+        "Stadskassa": (guld:200.0,invanare:0.0,platser:0,jobb:0,sysselsatta:0,inkomst:0.0),
+        "Transform": (translation:(0.0,0.0,0.0),rotation:(0.0,0.0,0.0,1.0),scale:(1.0,1.0,1.0)),
+      },
+    ),
+  ],
+)

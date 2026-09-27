@@ -4341,6 +4341,7 @@ dependencies = [
  "image",
  "log",
  "pollster",
+ "serde",
  "ymer-core",
  "ymer-render",
  "ymer-runtime",

@@ -1,50 +1,54 @@
 //! Spelets gränssnitt: HUD på toppen, byggpalett till vänster och en
 //! panel för den markerade byggnaden.
 //!
-//! Allt ritas ur `World` och skriver tillbaka dit. Knapparna sätter bara
-//! `Stad::vald` eller flaggar för rivning; själva bygget sker i spelets
-//! egen kod, som äger `World` utanför UI-stängningen.
+//! Siffrorna kommer ur `Stadskassa`, som skriptet fyller i. UI:t räknar
+//! alltså aldrig ut något själv – ändras en regel i `ekonomi.ts` följer
+//! HUD:en med utan att den här filen rörs.
 
 use bevy_ecs::prelude::*;
 
-use crate::{Kind, Stad};
+use crate::{Byggnad, Kind, Val, kassa};
 
-/// Vad spelaren bad om i UI:t den här framen och som spelet måste
-/// verkställa efteråt. `with_ui` lånar världen, så rivning kan inte ske
-/// mitt i ritandet – den sparas här och utförs av spelloopen.
+/// Vad spelaren bad om i UI:t och som spelet måste verkställa efteråt.
+/// `with_ui` lånar världen, så rivning kan inte ske mitt i ritandet.
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct UiKommando {
     pub riv: Option<crate::Tile>,
 }
 
 pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
-    let (stad, tal) = {
-        let stad = world.resource::<Stad>();
-        (stad.clone(), stad.nyckeltal())
+    let k = kassa(world);
+    let val = world.resource::<Val>().clone();
+    let antal = {
+        let mut query = world.query::<&Byggnad>();
+        query.iter(world).count()
     };
+    let markerad_byggnad = val
+        .markerad
+        .and_then(|tile| crate::byggnad_pa(world, tile).map(|(_, b)| b));
 
-    let mut vald = stad.vald;
-    let mut markerad = stad.markerad;
+    let mut vald = val.vald;
+    let mut markerad = val.markerad;
     let mut riv: Option<crate::Tile> = None;
 
     // --- HUD ----------------------------------------------------------
     egui::Panel::top("hud").show(ui_root, |ui| {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
-            ui.heading("🏙 Staden");
+            ui.heading("Staden");
             ui.separator();
 
-            nyckeltal(ui, "Guld", format!("{:.0}", stad.guld));
+            nyckeltal(ui, "Guld", format!("{:.0}", k.guld));
             nyckeltal(
                 ui,
                 "Invånare",
-                format!("{:.0} / {}", stad.invanare.floor(), tal.platser),
+                format!("{:.0} / {}", k.invanare.floor(), k.platser),
             );
-            nyckeltal(ui, "Jobb", format!("{} / {}", tal.sysselsatta, tal.jobb));
-            nyckeltal(ui, "Inkomst", format!("{:.1} guld/s", tal.inkomst));
+            nyckeltal(ui, "Jobb", format!("{} / {}", k.sysselsatta, k.jobb));
+            nyckeltal(ui, "Inkomst", format!("{:.1} guld/s", k.inkomst));
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new(format!("{} byggnader", stad.antal())).weak());
+                ui.label(egui::RichText::new(format!("{antal} byggnader")).weak());
             });
         });
         ui.add_space(4.0);
@@ -60,14 +64,13 @@ pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
             ui.separator();
 
             for kind in Kind::ALL {
-                let har_rad = stad.guld >= kind.kostnad();
-                let är_vald = kind == vald;
+                let har_rad = k.guld >= kind.kostnad();
+                let knapp =
+                    egui::Button::new(format!("{}  –  {:.0} guld", kind.namn(), kind.kostnad()))
+                        .selected(kind == vald);
 
-                let text = format!("{}  –  {:.0} guld", kind.namn(), kind.kostnad());
-                let knapp = egui::Button::new(text).selected(är_vald);
-
-                // Knappen går att välja även utan råd, så att man kan
-                // läsa beskrivningen och se vad man sparar till.
+                // Går att välja även utan råd, så att man kan läsa
+                // beskrivningen och se vad man sparar till.
                 if ui.add(knapp).clicked() {
                     vald = kind;
                 }
@@ -86,7 +89,7 @@ pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
             ui.separator();
             ui.label(
                 egui::RichText::new(
-                    "Klicka på marken för att bygga.\nKlicka på ett hus för att markera det.",
+                    "Klicka på marken för att bygga.\nKlicka på ett hus för att markera det.\n\nReglerna ligger i scripts/ekonomi.ts.",
                 )
                 .small()
                 .weak(),
@@ -94,22 +97,38 @@ pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
         });
 
     // --- markerad byggnad ---------------------------------------------
-    if let Some(tile) = markerad
-        && let Some(kind) = stad.upptagen(tile)
-    {
+    if let (Some(tile), Some(b)) = (markerad, markerad_byggnad) {
         egui::Window::new("Byggnad")
             .collapsible(false)
             .resizable(false)
             .anchor(egui::Align2::RIGHT_BOTTOM, [-16.0, -48.0])
             .show(ui_root.ctx(), |ui| {
-                ui.label(egui::RichText::new(kind.namn()).strong().size(16.0));
+                ui.label(egui::RichText::new(b.kind.namn()).strong().size(16.0));
                 ui.label(format!("Ruta {}, {}", tile.0, tile.1));
                 ui.separator();
-                ui.label(kind.beskrivning());
+
+                // Siffrorna är skriptets, inte Rusts.
+                egui::Grid::new("byggnadsdata").show(ui, |ui| {
+                    ui.label("Platser");
+                    ui.label(format!("{}", b.platser));
+                    ui.end_row();
+                    ui.label("Jobb");
+                    ui.label(format!("{} / {}", b.bemanning, b.jobb));
+                    ui.end_row();
+                    ui.label("Inkomst");
+                    let andel = if b.jobb == 0 {
+                        0.0
+                    } else {
+                        b.inkomst * b.bemanning as f32 / b.jobb as f32
+                    };
+                    ui.label(format!("{andel:.1} av {:.1} guld/s", b.inkomst));
+                    ui.end_row();
+                });
+
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     if ui
-                        .button(format!("Riv (+{:.0} guld)", kind.kostnad() * 0.5))
+                        .button(format!("Riv (+{:.0} guld)", b.kind.kostnad() * 0.5))
                         .clicked()
                     {
                         riv = Some(tile);
@@ -124,14 +143,14 @@ pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
     // --- statusrad ----------------------------------------------------
     egui::Panel::bottom("status").show(ui_root, |ui| {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(&stad.status).weak());
+            ui.label(egui::RichText::new(&val.status).weak());
         });
     });
 
-    let mut stad = world.resource_mut::<Stad>();
-    stad.vald = vald;
-    stad.markerad = markerad;
-    drop(stad);
+    let mut val = world.resource_mut::<Val>();
+    val.vald = vald;
+    val.markerad = markerad;
+    drop(val);
     world.insert_resource(UiKommando { riv });
 }
 
