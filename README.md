@@ -89,7 +89,8 @@ körning. Fungerar på mjukvaru-Vulkan (lavapipe) – bra som röktest i CI.
 | `ymer-render` | wgpu: device, queue, rendermål (fönster eller offscreen), meshes, pipelines. Ser aldrig en `World` – matas med en `RenderList`. |
 | `ymer-runtime` | fönster (winit), spelloop, ECS-värld och schema. |
 | `ymer-script` | TS -> JS (oxc) och QuickJS-i-wasm via wasmtime. Packar komponenter till en platt f32-buffert. |
-| `ymer-editor` | egui-editorn: hierarki, inspector genererad ur registret, spara/ladda. Ritas som overlay i motorns render-pass. |
+| `ymer-ui` | gränssnitt som data: ett träd av noder, layout, träffdetektering och en ritlista. Fristående – beror inte på någon annan del av motorn. |
+| `ymer-editor` | editorn: hierarki, inspector genererad ur registret, filutforskare, spara/ladda. Byggd av `ymer-ui` och ritad i motorns eget skärmrymdspass. |
 | `ymer-scene` | typregister och scenformat (RON). Navet som editor och skript-ABI läser från. |
 | `ymer-pak` | arkivformatet och assetkällorna (lösa filer eller `.pak`). |
 | `games/ymer-play` | spelrunnern: kör ett exporterat projekt. |
@@ -97,7 +98,20 @@ körning. Fungerar på mjukvaru-Vulkan (lavapipe) – bra som röktest i CI.
 | `scripthost` | QuickJS kompilerad till `wasm32-wasip1`. Eget workspace. |
 
 Versioner pinnas i `[workspace.dependencies]` i rot-`Cargo.toml`. wgpu 30 och
-winit 0.30.13 är valda för att matcha egui 0.36.
+winit 0.30.13 är valda för att matcha egui 0.36, som fortfarande används för
+spelens debugkonsol och `App::with_ui`. Editorn ritas av `ymer-ui`.
+
+`ymer-ui` är retained: ett UI är ett träd av noder man kan spara, läsa in och
+peka på, inte kod som körs varje frame. Det följer av vad biblioteket ska
+klara – att skapas i en editor, ändras från TypeScript och användas utanför
+Ymer. Ut kommer en ritlista av rektanglar och textrader; `UiBackend` i
+`ymer-runtime` är det enda stället som känner till både den och wgpu.
+
+Editorn bygger ändå om hela trädet varje frame, eftersom innehållet beror på
+vad som är markerat. Det går ihop genom stabila id:n och
+`Document::carry_view_state_from`, som bär över det som hör till *vyn* –
+rullningslägen, utfällda avsnitt, panelbredder, halvskrivna tal – medan
+värdena kommer ur världen.
 
 ## Vägen framåt
 

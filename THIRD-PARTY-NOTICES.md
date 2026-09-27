@@ -6,7 +6,11 @@ motorns egen kod. De flesta (MIT, Apache-2.0, BSD) kräver att
 upphovsrättsnotisen följer med i binärdistributioner – det gäller alltså
 även exporterade spel.
 
-Två saker värda att notera särskilt:
+Tre saker värda att notera särskilt:
+
+- **DejaVu Sans** (`assets/fonts/DejaVuSans.ttf`) följer med editorn, och
+  därmed med varje kopia av motorn. Bitstream Vera-licensen tillåter
+  vidaredistribution; se `assets/fonts/LICENSE.md`.
 
 - **QuickJS** (MIT) är inbakad i `script_host.wasm` och följer därför med i
   varje exporterat spel.
