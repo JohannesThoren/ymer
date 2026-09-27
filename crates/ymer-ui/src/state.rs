@@ -8,7 +8,7 @@
 
 use crate::geom::{Rect, Vec2};
 use crate::layout::LaidOut;
-use crate::node::{Document, Kind, Node};
+use crate::node::{Document, Kind, Node, clear_group};
 
 /// Vad som hänt med pekaren sedan förra framen.
 #[derive(Debug, Clone, Copy, Default)]
@@ -418,21 +418,6 @@ impl State {
 
 fn takes_keyboard(kind: &Kind) -> bool {
     matches!(kind, Kind::TextInput { .. } | Kind::TextArea { .. })
-}
-
-/// Släcker alla radioknappar i gruppen utom den valda.
-fn clear_group(node: &mut Node, group: &str, keep: &str) {
-    if let Kind::Radio {
-        group: g, checked, ..
-    } = &mut node.kind
-        && g == group
-        && node.id != keep
-    {
-        *checked = false;
-    }
-    for child in &mut node.children {
-        clear_group(child, group, keep);
-    }
 }
 
 /// Noden under en punkt: den översta träffbara, eller `None`.

@@ -535,3 +535,29 @@ fn varden_gar_att_lasa_och_skriva_pa_id() {
     assert_eq!(document.find("namn").unwrap().kind.text(), Some("nytt"));
     assert_eq!(document.find("val").unwrap().kind.text(), Some("a"));
 }
+
+#[test]
+fn set_value_klamras_till_reglagets_spann() {
+    // Ett skript som skriver ett reglage ska inte kunna lämna greppet
+    // utanför spannet. Tidigare träffade set_value bara Bar, så varje
+    // ui.setValue mot ett reglage föll tyst bort.
+    let mut document = Document::new(kolumn([
+        Node::slider("volym", 50.0, 0.0, 100.0),
+        Node::bar(0.5, Color::rgb(1.0, 1.0, 1.0)).with_id("liv"),
+    ]));
+
+    assert!(document.set_value("volym", 250.0));
+    assert_eq!(document.value("volym"), Some(NodeValue::Number(100.0)));
+
+    assert!(document.set_value("volym", -1.0));
+    assert_eq!(document.value("volym"), Some(NodeValue::Number(0.0)));
+
+    // Mätaren är normaliserad, inte ett spann.
+    assert!(document.set_value("liv", 2.0));
+    assert_eq!(document.value("liv"), Some(NodeValue::Number(1.0)));
+
+    assert!(
+        !document.set_value("saknas", 1.0),
+        "okänt id ska rapportera fel"
+    );
+}

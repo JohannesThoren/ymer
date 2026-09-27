@@ -714,3 +714,40 @@ pub fn propagate_transforms(world: &mut World) {
         }
     }
 }
+
+// ------------------------------------------------------------ gränssnitt
+
+/// Spelets gränssnitt, som data.
+///
+/// Ligger här bland `Input` och `Time` av samma skäl som de: det är
+/// delat tillstånd som både motorn och spelet rör, och `ymer-ui` självt
+/// vet inget om ECS.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct UiDocument(pub ymer_ui::Document);
+
+impl std::ops::Deref for UiDocument {
+    type Target = ymer_ui::Document;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for UiDocument {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// Vad som hände i gränssnittet den här framen.
+///
+/// Fylls av den som kör layouten och töms aldrig av sig själv – den som
+/// skriver den ersätter den varje frame.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct UiEvents(pub ymer_ui::Events);
+
+impl std::ops::Deref for UiEvents {
+    type Target = ymer_ui::Events;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

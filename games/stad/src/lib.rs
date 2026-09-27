@@ -37,18 +37,13 @@ pub const SCRIPT: &str = "ekonomi.ts";
 
 pub type Tile = (i32, i32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Kind {
+    #[default]
     Hus,
     Butik,
     Marknad,
     Kontor,
-}
-
-impl Default for Kind {
-    fn default() -> Self {
-        Kind::Hus
-    }
 }
 
 impl Kind {

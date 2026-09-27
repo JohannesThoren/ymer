@@ -6136,6 +6136,7 @@ dependencies = [
  "glam 0.33.7",
  "log",
  "serde",
+ "ymer-ui",
 ]
 
 [[package]]
@@ -6260,6 +6261,7 @@ dependencies = [
  "wasmtime-wasi",
  "ymer-core",
  "ymer-scene",
+ "ymer-ui",
 ]
 
 [[package]]

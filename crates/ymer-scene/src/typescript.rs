@@ -170,6 +170,45 @@ declare const engine: {
 };
 
 /**
+ * Gränssnittet, sett från ett skript.
+ *
+ * Skriptet ser inte nodträdet, bara de id:n det frågar efter. Läsningarna
+ * gäller framens ögonblicksbild; skrivningarna verkställs när update
+ * returnerat, precis som `engine.set`.
+ *
+ * ```ts
+ * if (ui.clicked("bygg_hus")) { ... }
+ * ui.setText("guld", String(guld));
+ * ```
+ */
+declare const ui: {
+  /** Nodens råa värde, eller undefined för noder utan värde. */
+  get(id: string): string | number | boolean | null | undefined;
+  /** Textfältets innehåll, "" när id:t saknas. */
+  text(id: string): string;
+  /** Kryssruta eller radioknapp. */
+  checked(id: string): boolean;
+  /** Reglagets värde, 0 när id:t saknas. */
+  number(id: string): number;
+  /** Valt index i en dropdown, null när inget är valt. */
+  selected(id: string): number | null;
+
+  /** Släpptes knappen inne i sig själv den här framen? */
+  clicked(id: string): boolean;
+  /** Ändrades värdet den här framen? */
+  changed(id: string): boolean;
+  /** Togs textfältet emot med Enter den här framen? */
+  submitted(id: string): boolean;
+
+  setText(id: string, text: string): void;
+  setVisible(id: string, visible: boolean): void;
+  setChecked(id: string, checked: boolean): void;
+  setValue(id: string, value: number): void;
+  /** null nollställer valet. */
+  setSelected(id: string, index: number | null): void;
+};
+
+/**
  * Signaturen varje skript ska exportera:
  *
  * ```ts

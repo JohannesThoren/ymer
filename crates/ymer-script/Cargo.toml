@@ -7,6 +7,7 @@ license-file.workspace = true
 
 [dependencies]
 ymer-core = { workspace = true }
+ymer-ui = { workspace = true }
 bevy_ecs = { workspace = true }
 serde_json = { workspace = true }
 ymer-scene = { workspace = true }

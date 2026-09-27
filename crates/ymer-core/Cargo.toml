@@ -7,6 +7,7 @@ license-file.workspace = true
 
 [dependencies]
 bevy_ecs = { workspace = true }
+ymer-ui = { workspace = true }
 glam = { workspace = true }
 serde = { workspace = true }
 log = { workspace = true }

@@ -291,6 +291,39 @@ impl ScriptRuntime {
 /// Flyttar allt skriptet loggat sedan förra anropet in i `ConsoleLog`.
 /// Tyst no-op om resursen saknas – att kräva den av alla anropare hade
 /// tvingat headless-exempel som inte bryr sig om konsolen att sätta upp den.
+/// Gränssnittets tillstånd som skriptet ser det.
+///
+/// `Null` när inget gränssnitt är laddat – glue-koden ger då ett `ui`
+/// som svarar tomt på allt, i stället för att krascha skript som råkar
+/// fråga.
+fn ui_payload(world: &mut World) -> Value {
+    let Some(document) = world.get_resource::<ymer_core::UiDocument>() else {
+        return Value::Null;
+    };
+
+    let mut values = Map::new();
+    for (id, value) in document.values() {
+        let json = match value {
+            ymer_ui::NodeValue::Text(text) => json!(text),
+            ymer_ui::NodeValue::Bool(flag) => json!(flag),
+            ymer_ui::NodeValue::Number(number) => json!(number),
+            ymer_ui::NodeValue::Index(index) => match index {
+                Some(index) => json!(index),
+                None => Value::Null,
+            },
+        };
+        values.insert(id.to_string(), json);
+    }
+
+    let events = world.get_resource::<ymer_core::UiEvents>();
+    json!({
+        "values": values,
+        "clicked": events.map(|e| e.clicked.clone()).unwrap_or_default(),
+        "changed": events.map(|e| e.changed.clone()).unwrap_or_default(),
+        "submitted": events.map(|e| e.submitted.clone()).unwrap_or_default(),
+    })
+}
+
 fn push_logs(world: &mut World, runtime: &mut ScriptRuntime, fallback_source: &str) {
     let logs = runtime.take_pending_logs();
     if logs.is_empty() {
@@ -487,11 +520,17 @@ fn execute_general(
         .get_resource::<ymer_core::Input>()
         .cloned()
         .unwrap_or_default();
+    // Gränssnittets värden, platt: id -> värde. Hela trädet vore
+    // slöseri – ett UI kan ha hundratals noder och en handfull värden,
+    // och skriptet vill åt dem på namn ändå.
+    let ui = ui_payload(world);
+
     let payload = serde_json::to_string(&json!({
         "dt": dt,
         "input": input,
         "entities": entities,
         "world": world_view,
+        "ui": ui,
     }))?;
     let raw_response = runtime.run_json(&payload);
     push_logs(world, runtime, script);
@@ -567,6 +606,43 @@ fn execute_general(
                         && let Err(err) = world.try_despawn(entity)
                     {
                         log::warn!("{script}: despawn: {err}");
+                    }
+                }
+
+                // Gränssnittet ändras på id, inte på entitet: dokumentet
+                // är ett träd vid sidan om världen, och noderna har inga
+                // entiteter att peka ut.
+                Some("ui_set") => {
+                    let Some(id) = command.get("id").and_then(Value::as_str) else {
+                        continue;
+                    };
+                    let Some(mut document) = world.get_resource_mut::<ymer_core::UiDocument>()
+                    else {
+                        log::warn!("{script}: ui.set utan något gränssnitt laddat");
+                        continue;
+                    };
+
+                    let mut ok = true;
+                    if let Some(text) = command.get("text").and_then(Value::as_str) {
+                        ok &= document.set_text(id, text);
+                    }
+                    if let Some(visible) = command.get("visible").and_then(Value::as_bool) {
+                        ok &= document.set_visible(id, visible);
+                    }
+                    if let Some(checked) = command.get("checked").and_then(Value::as_bool) {
+                        ok &= document.set_checked(id, checked);
+                    }
+                    if let Some(value) = command.get("value").and_then(Value::as_f64) {
+                        ok &= document.set_value(id, value as f32);
+                    }
+                    if let Some(selected) = command.get("selected") {
+                        let index = selected.as_u64().map(|i| i as usize);
+                        ok &= document.set_selected(id, index);
+                    }
+                    if !ok {
+                        // Ett felstavat id ska inte tigas ihjäl. Utan det
+                        // här ser en trasig HUD ut som ett spelfel.
+                        log::warn!("{script}: ui.set på \"{id}\" träffade ingen nod som tog emot");
                     }
                 }
 

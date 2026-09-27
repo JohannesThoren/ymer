@@ -147,10 +147,12 @@ pub fn rita(ui_root: &mut egui::Ui, world: &mut World) {
         });
     });
 
-    let mut val = world.resource_mut::<Val>();
-    val.vald = vald;
-    val.markerad = markerad;
-    drop(val);
+    {
+        // Lånet på Val måste släppas innan nästa resurs sätts.
+        let mut val = world.resource_mut::<Val>();
+        val.vald = vald;
+        val.markerad = markerad;
+    }
     world.insert_resource(UiKommando { riv });
 }
 

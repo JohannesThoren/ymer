@@ -272,6 +272,24 @@ impl Node {
             .find_map(|child| child.find_mut(id))
     }
 
+    /// Nodens värde, om den bär något.
+    pub fn value(&self) -> Option<NodeValue> {
+        match &self.kind {
+            Kind::TextInput { text, .. } | Kind::TextArea { text, .. } => {
+                Some(NodeValue::Text(text.clone()))
+            }
+            Kind::Checkbox { checked, .. } | Kind::Radio { checked, .. } => {
+                Some(NodeValue::Bool(*checked))
+            }
+            Kind::Slider { value, .. } => Some(NodeValue::Number(*value)),
+            Kind::Bar { value, .. } => Some(NodeValue::Number(*value)),
+            Kind::Dropdown { selected, .. } => Some(NodeValue::Index(*selected)),
+            // Etiketter och knappar har text men inget *värde* – de är
+            // utdata, inte inmatning.
+            _ => None,
+        }
+    }
+
     /// Alla noder i trädet, föräldrar före barn.
     pub fn walk(&self) -> impl Iterator<Item = &Node> {
         let mut stack = vec![self];
@@ -282,6 +300,38 @@ impl Node {
             Some(node)
         })
     }
+}
+
+/// Släcker alla radioknappar i gruppen utom den valda.
+///
+/// Bor här och inte hos interaktionen, för både ett klick och ett skript
+/// som sätter värdet måste följa samma regel: en grupp har en vald.
+pub(crate) fn clear_group(node: &mut Node, group: &str, keep: &str) {
+    if let Kind::Radio {
+        group: g, checked, ..
+    } = &mut node.kind
+        && g == group
+        && node.id != keep
+    {
+        *checked = false;
+    }
+    for child in &mut node.children {
+        clear_group(child, group, keep);
+    }
+}
+
+/// Värdet på en nod, i den form den som frågar vill ha det.
+///
+/// Finns för att en läsare – ett skript, en editor, ett test – ska kunna
+/// hämta *vad noden är värd* utan att först räkna ut vilken sorts nod det
+/// är. Vilken variant man får avgörs av noden, inte av frågan.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum NodeValue {
+    Text(String),
+    Bool(bool),
+    Number(f32),
+    /// Valt alternativ i en dropdown.
+    Index(Option<usize>),
 }
 
 /// Hela gränssnittet, som det sparas på fil.
@@ -321,15 +371,91 @@ impl Document {
         }
     }
 
-    /// Värdet på en `Bar`.
+    /// Värdet på ett reglage eller en mätare.
+    ///
+    /// Reglaget klamras till sitt eget spann och kvantiseras till sitt
+    /// steg, precis som en dragning gör. Annars kunde ett skript lämna
+    /// greppet på en position spelaren själv inte kan nå, och nästa
+    /// dragning hade hoppat.
     pub fn set_value(&mut self, id: &str, value: f32) -> bool {
         match self.find_mut(id).map(|node| &mut node.kind) {
+            Some(Kind::Slider {
+                value: slot,
+                min,
+                max,
+                step,
+            }) => {
+                let mut new = value;
+                if *step > 0.0 {
+                    new = (new / *step).round() * *step;
+                }
+                *slot = new.clamp(min.min(*max), max.max(*min));
+                true
+            }
+            // Mätaren är normaliserad, inte ett spann.
             Some(Kind::Bar { value: slot, .. }) => {
                 *slot = value.clamp(0.0, 1.0);
                 true
             }
             _ => false,
         }
+    }
+
+    /// Bockar i eller ur en kryssruta eller radioknapp.
+    ///
+    /// En radioknapp som bockas i släcker resten av sin grupp, precis som
+    /// ett klick hade gjort – annars kunde ett skript lämna två valda.
+    pub fn set_checked(&mut self, id: &str, value: bool) -> bool {
+        let group = match self.find_mut(id).map(|node| &mut node.kind) {
+            Some(Kind::Checkbox { checked, .. }) => {
+                *checked = value;
+                None
+            }
+            Some(Kind::Radio { checked, group, .. }) => {
+                *checked = value;
+                value.then(|| group.clone())
+            }
+            _ => return false,
+        };
+        if let Some(group) = group {
+            clear_group(&mut self.root, &group, id);
+        }
+        true
+    }
+
+    /// Väljer ett alternativ i en dropdown.
+    pub fn set_selected(&mut self, id: &str, index: Option<usize>) -> bool {
+        match self.find_mut(id).map(|node| &mut node.kind) {
+            Some(Kind::Dropdown {
+                options, selected, ..
+            }) => {
+                // Ett index utanför listan vore osynligt fel; hellre nej.
+                if index.is_some_and(|i| i >= options.len()) {
+                    return false;
+                }
+                *selected = index;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Vad noden är värd, för den som vill läsa utan att veta sorten.
+    pub fn value(&self, id: &str) -> Option<NodeValue> {
+        self.find(id).and_then(|node| node.value())
+    }
+
+    /// Alla namngivna noder som bär ett värde.
+    ///
+    /// Det här är vad ett skript får skickat till sig varje frame: en
+    /// platt lista, inte hela trädet. Ett gränssnitt kan ha hundratals
+    /// noder och en handfull värden.
+    pub fn values(&self) -> Vec<(&str, NodeValue)> {
+        self.root
+            .walk()
+            .filter(|node| !node.id.is_empty())
+            .filter_map(|node| node.value().map(|value| (node.id.as_str(), value)))
+            .collect()
     }
 
     pub fn ids(&self) -> impl Iterator<Item = &str> {

@@ -120,6 +120,86 @@ globalThis.Transform = Transform;
 // världen direkt – samma modell som bevy Commands.
 globalThis.__commands = [];
 
+// --- gränssnittet ------------------------------------------------------
+// Värden skickar en platt ögonblicksbild av dokumentets värden och
+// framens händelser; ändringar går tillbaka genom samma kommandobuffert
+// som allt annat. Skriptet ser alltså aldrig nodträdet, bara de id:n det
+// själv bett om – det är vad som håller wasm-gränsen billig även när
+// HUD:en är stor.
+globalThis.__ui = { values: {}, clicked: [], changed: [], submitted: [] };
+
+globalThis.ui = {
+    /// Råvärdet för ett id, eller `undefined` om noden inte finns eller
+    /// inte bär något värde (en panel, en etikett).
+    get(id) {
+        return globalThis.__ui.values[id];
+    },
+
+    /// Textfältets innehåll. Tom sträng när id:t saknas, så att
+    /// anropsplatsen kan trimma och jämföra utan att först null-kolla.
+    text(id) {
+        const value = globalThis.__ui.values[id];
+        return typeof value === "string" ? value : "";
+    },
+
+    /// Kryssruta eller radioknapp.
+    checked(id) {
+        return globalThis.__ui.values[id] === true;
+    },
+
+    /// Reglagets värde.
+    number(id) {
+        const value = globalThis.__ui.values[id];
+        return typeof value === "number" ? value : 0;
+    },
+
+    /// Valt index i en dropdown, eller null när inget är valt.
+    selected(id) {
+        const value = globalThis.__ui.values[id];
+        return typeof value === "number" ? value : null;
+    },
+
+    /// Sant den frame knappen släpptes inne i sig själv.
+    clicked(id) {
+        return globalThis.__ui.clicked.indexOf(id) !== -1;
+    },
+
+    /// Sant den frame värdet ändrades.
+    changed(id) {
+        return globalThis.__ui.changed.indexOf(id) !== -1;
+    },
+
+    /// Sant den frame ett textfält togs emot med Enter.
+    submitted(id) {
+        return globalThis.__ui.submitted.indexOf(id) !== -1;
+    },
+
+    setText(id, text) {
+        globalThis.__commands.push({ op: "ui_set", id: id, text: String(text) });
+    },
+
+    setVisible(id, visible) {
+        globalThis.__commands.push({ op: "ui_set", id: id, visible: !!visible });
+    },
+
+    setChecked(id, checked) {
+        globalThis.__commands.push({ op: "ui_set", id: id, checked: !!checked });
+    },
+
+    setValue(id, value) {
+        globalThis.__commands.push({ op: "ui_set", id: id, value: Number(value) });
+    },
+
+    /// `null` nollställer valet.
+    setSelected(id, index) {
+        globalThis.__commands.push({
+            op: "ui_set",
+            id: id,
+            selected: index === null || index === undefined ? null : Number(index),
+        });
+    },
+};
+
 globalThis.engine = {
     /// Roterar en kvaternion [x,y,z,w] på plats kring en axel.
     rotate(q, ax, ay, az, radians) {
@@ -258,6 +338,10 @@ globalThis.__engine_update_json = function (payload) {
     };
 
     globalThis.__world = frame.world || [];
+    // Null när inget gränssnitt är laddat. Då behålls tomma tabeller, så
+    // att ui.text() svarar "" istället för att kasta – ett skript ska
+    // kunna skrivas mot en HUD som ännu inte finns.
+    globalThis.__ui = frame.ui || { values: {}, clicked: [], changed: [], submitted: [] };
 
     const input = frame;
     const fn = globalThis.update;
