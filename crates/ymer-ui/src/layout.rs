@@ -41,7 +41,14 @@ impl LaidOut {
     }
 }
 
-/// Hur stor en nod vill vara, oberoende av föräldern.
+/// Nodens *egenstorlek*: så liten den kan vara utan att innehållet
+/// klipps. `Size::Fill` räknas här som sitt innehåll, inte som hela ytan.
+///
+/// Skillnaden är hela poängen. Om Fill mätte sig som "all tillgänglig
+/// plats" skulle en Fill-nod blåsa upp sin Auto-förälder till mer än
+/// föräldern har – en utfyllnad i en rad gjorde topplisten dubbelt så
+/// bred som fönstret. Den faktiska utfyllnaden sker i `place`, som är
+/// den enda som vet hur mycket som blev över.
 fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
     if !node.style.visible {
         return Vec2::ZERO;
@@ -110,10 +117,24 @@ fn resolve(size: Size, natural: f32, available: f32) -> f32 {
     match size {
         Size::Auto => natural,
         Size::Fixed(v) => v,
-        // `Fill` mäts som hela ytan; föräldern delar sedan om det behövs.
-        Size::Fill => available.max(natural),
+        // Se kommentaren över `measure`: Fill är sitt innehåll här.
+        Size::Fill => natural,
         Size::Fraction(f) => available * f,
     }
+}
+
+/// Egenstorleken, men med `Fill` utsträckt till den givna ytan.
+/// Används där en nod placeras direkt mot en yta i stället för att dela
+/// den med syskon: roten, och barn i en `Stack`.
+fn stretched(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
+    let mut size = measure(node, text, available);
+    if node.style.width == Size::Fill {
+        size.x = available.x;
+    }
+    if node.style.height == Size::Fill {
+        size.y = available.y;
+    }
+    size
 }
 
 /// Räknar ut var allt hamnar inom `viewport`.
@@ -129,7 +150,7 @@ pub fn layout(document: &Document, viewport: Rect, text: &dyn TextMeasure) -> La
         return out;
     }
 
-    let size = measure(root, text, viewport.size());
+    let size = stretched(root, text, viewport.size());
     let factors = root.style.anchor.factors();
     let position = Vec2::new(
         viewport.x + (viewport.width - size.x) * factors.x + root.style.offset.x,
@@ -183,7 +204,7 @@ fn place(
         Layout::Stack => {
             // Varje barn placeras för sig, mot sitt eget ankare.
             for child in visible {
-                let size = measure(child, text, inner.size());
+                let size = stretched(child, text, inner.size());
                 let factors = child.style.anchor.factors();
                 let position = Vec2::new(
                     inner.x + (inner.width - size.x) * factors.x + child.style.offset.x,
@@ -263,9 +284,18 @@ fn place(
                 // självt bett om Fill eller ett fast mått.
                 let cross_available = if row { inner.height } else { inner.width };
                 let child_cross = if row { size.y } else { size.x };
-                let cross_size = match style.align {
-                    Align::Stretch => cross_available,
-                    _ => child_cross.min(cross_available),
+                // Ett barn som självt bett om Fill på tväraxeln sträcks
+                // oavsett förälderns `align`; att be om det och ändå bli
+                // innehållsstort vore förvirrande.
+                let child_fills_cross = if row {
+                    child.style.height == Size::Fill
+                } else {
+                    child.style.width == Size::Fill
+                };
+                let cross_size = if child_fills_cross || style.align == Align::Stretch {
+                    cross_available
+                } else {
+                    child_cross.min(cross_available)
                 };
                 let cross_offset = match style.align {
                     Align::Start | Align::Stretch => 0.0,

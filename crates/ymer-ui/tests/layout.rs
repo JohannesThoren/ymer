@@ -182,6 +182,60 @@ fn justify_center_centrerar_pa_huvudaxeln() {
     assert_eq!(laid_out.rect("mitten").unwrap().x, 100.0);
 }
 
+#[test]
+fn fill_blaser_inte_upp_sin_foralder() {
+    // Buggen: en utfyllnad med Fill mätte sig som hela den tillgängliga
+    // bredden, vilket räknades in i förälderns Auto-storlek. En toppList
+    // med en spacer blev då bredare än fönstret, och allt till höger om
+    // utfyllnaden hamnade utanför bild.
+    let document = Document::new(
+        Node::panel()
+            .with_id("rad")
+            .with_style(
+                Style::row()
+                    .with_size(Size::Fill, Size::Fixed(40.0))
+                    .with_gap(10.0),
+            )
+            .with_children([
+                Node::panel()
+                    .with_id("vanster")
+                    .with_style(Style::default().with_size(Size::Fixed(60.0), Size::Fill)),
+                Node::spacer().with_style(Style::default().with_size(Size::Fill, Size::Fixed(1.0))),
+                Node::panel()
+                    .with_id("hoger")
+                    .with_style(Style::default().with_size(Size::Fixed(80.0), Size::Fill)),
+            ]),
+    );
+
+    let laid_out = layout(&document, viewport(), &metrics());
+    assert_eq!(
+        laid_out.rect("rad").unwrap().width,
+        800.0,
+        "raden får aldrig bli bredare än ytan den fick"
+    );
+    let hoger = laid_out.rect("hoger").unwrap();
+    assert_eq!(
+        hoger.x + hoger.width,
+        800.0,
+        "utfyllnaden ska trycka den sista noden till högerkanten"
+    );
+}
+
+#[test]
+fn fill_pa_tvaraxeln_stracks_utan_align_stretch() {
+    let document = Document::new(
+        Node::panel()
+            .with_style(Style::row().with_size(Size::Fixed(200.0), Size::Fixed(60.0)))
+            .with_child(
+                Node::panel()
+                    .with_id("hog")
+                    .with_style(Style::default().with_size(Size::Fixed(50.0), Size::Fill)),
+            ),
+    );
+    let laid_out = layout(&document, viewport(), &metrics());
+    assert_eq!(laid_out.rect("hog").unwrap().height, 60.0);
+}
+
 // --------------------------------------------------------- interaktion
 
 fn knapp_dokument() -> Document {

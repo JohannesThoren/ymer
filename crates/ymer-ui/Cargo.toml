@@ -18,3 +18,4 @@ ab_glyph = { version = "0.2", optional = true }
 
 [dev-dependencies]
 ron = { workspace = true }
+image = { workspace = true }
