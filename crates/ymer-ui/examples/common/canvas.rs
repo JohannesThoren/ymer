@@ -12,6 +12,8 @@ pub struct Canvas {
     width: u32,
     height: u32,
     pixels: Vec<[f32; 4]>,
+    /// Ytan nuvarande kommando får rita inom.
+    clip: Rect,
 }
 
 impl Canvas {
@@ -20,11 +22,20 @@ impl Canvas {
             width,
             height,
             pixels: vec![background.to_array(); (width * height) as usize],
+            clip: Rect::EVERYTHING,
         }
     }
 
     fn blend(&mut self, x: i64, y: i64, color: Color, coverage: f32) {
         if x < 0 || y < 0 || x >= self.width as i64 || y >= self.height as i64 {
+            return;
+        }
+        // Klippet gäller per pixel. Enklare än att skära figurer, och för
+        // en mjukvaruritare kostar det ingenting.
+        if !self
+            .clip
+            .contains(Vec2::new(x as f32 + 0.5, y as f32 + 0.5))
+        {
             return;
         }
         let alpha = (color.a * coverage).clamp(0.0, 1.0);
@@ -50,8 +61,9 @@ impl Canvas {
     }
 
     pub fn run(&mut self, list: &DrawList, atlas: &mut FontAtlas) {
-        for command in &list.commands {
-            match command {
+        for item in &list.commands {
+            self.clip = item.clip;
+            match &item.command {
                 Command::Rect { rect, color, .. } => self.fill(*rect, *color),
                 Command::Image { rect, tint, .. } => {
                     // Ingen texturladdning i det här exemplet; en platta

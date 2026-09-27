@@ -404,12 +404,12 @@ fn ritlistan_foljer_traedet() {
     let rects = list
         .commands
         .iter()
-        .filter(|c| matches!(c, Command::Rect { .. }))
+        .filter(|c| matches!(c.command, Command::Rect { .. }))
         .count();
     let texts = list
         .commands
         .iter()
-        .filter(|c| matches!(c, Command::Text { .. }))
+        .filter(|c| matches!(c.command, Command::Text { .. }))
         .count();
     assert_eq!(rects, 1);
     assert_eq!(texts, 1);

@@ -114,6 +114,18 @@ impl Rect {
     pub fn is_empty(&self) -> bool {
         self.width <= 0.0 || self.height <= 0.0
     }
+
+    /// En rektangel som täcker allt: klippning mot den gör ingenting.
+    ///
+    /// Måtten är stora men ändliga. Med `f32::INFINITY` blir bredden
+    /// `inf - inf = NaN` i varje snitt, och en NaN-rektangel innehåller
+    /// ingen punkt alls – allt hade slutat träffas.
+    pub const EVERYTHING: Rect = Rect {
+        x: -1.0e6,
+        y: -1.0e6,
+        width: 2.0e6,
+        height: 2.0e6,
+    };
 }
 
 /// Marginal eller utfyllnad per kant.

@@ -9,6 +9,13 @@
 //! Glyfatlasen laddas upp som en vanlig textur, en gång och sedan när den
 //! vuxit. Fyllda ytor ritas med atlasens vita pixel, så text och
 //! rektanglar delar material och kan slås ihop till samma draw call.
+//!
+//! Klippningen sker *geometriskt*, genom att varje kvadrat skärs mot sitt
+//! klipp och dess UV trimmas lika mycket. Alternativet hade varit scissor
+//! i renderaren, men det kräver att ritpasset delas upp per klipprektangel
+//! och att `RenderList` bär renderingstillstånd. Klippen här är
+//! axelriktade, så snittet är exakt – och en halv glyf i kanten på en
+//! rullad lista får sin UV trimmad och ser rätt ut.
 
 use ymer_core::{Mat4, MeshId, TextureId, Vec3};
 use ymer_render::{Assets, DrawItem, Renderer};
@@ -56,19 +63,36 @@ impl UiBackend {
     /// första gången det används – ett fel som bara syns en frame och
     /// därför är lätt att missa.
     ///
+    /// Texturen skrivs om *på plats*. Det är hela förutsättningen för den
+    /// ordningen: `build` har redan stoppat in texturens id i varje
+    /// kvadrat, så en ny textur hade lämnat framens glyfer pekande på den
+    /// gamla, tomma atlasen. Symptomet är lömskt – panelerna ritas, för
+    /// de använder den vita pixeln som finns från början, och bara texten
+    /// försvinner.
+    ///
     /// Atlasens mått ändras aldrig, så UV:erna i en redan byggd lista
     /// håller även om nya glyfer tillkommit.
     pub fn upload(&mut self, renderer: &mut Renderer) {
-        if self.texture.is_some() && !self.atlas.take_dirty() {
-            return;
-        }
+        let dirty = self.atlas.take_dirty();
         let (width, height) = self.atlas.size();
         self.size = (width, height);
-        let rgba = self.atlas.rgba();
-        // add_texture skapar en ny textur varje gång. För en atlas som
-        // växer sällan är det gott nog; skulle den växa varje frame vore
-        // en uppdatering på plats rätt.
-        self.texture = Some(renderer.add_texture(&rgba, width, height, "ui atlas"));
+
+        match self.texture {
+            Some(texture) if dirty => {
+                let rgba = self.atlas.rgba();
+                if !renderer.update_texture(texture, &rgba, width, height) {
+                    // Måtten gick isär – atlasen har bytts ut. Då är en ny
+                    // textur rätt, och framens lista får ritas om nästa
+                    // frame.
+                    self.texture = Some(renderer.add_texture(&rgba, width, height, "ui atlas"));
+                }
+            }
+            Some(_) => {}
+            None => {
+                let rgba = self.atlas.rgba();
+                self.texture = Some(renderer.add_texture(&rgba, width, height, "ui atlas"));
+            }
+        }
     }
 
     /// Bygger renderarens items ur en ritlista.
@@ -82,28 +106,46 @@ impl UiBackend {
         };
         let mut items = Vec::with_capacity(list.commands.len());
 
-        for command in &list.commands {
-            match command {
+        for item in &list.commands {
+            let clip = item.clip;
+            match &item.command {
                 Command::Rect { rect, color, .. } => {
-                    items.push(self.quad_item(*rect, texture, *color, self.white));
+                    // Den vita pixeln är enfärgad, så UV:n behöver inte
+                    // trimmas – men rektangeln måste skäras.
+                    items.extend(self.quad_item(
+                        *rect,
+                        texture,
+                        *color,
+                        self.atlas_uv(self.white),
+                        clip,
+                    ));
                 }
                 Command::Image { rect, source, tint } => {
                     let texture = assets.texture(source);
                     // Hela texturen, inte en ruta ur atlasen.
-                    let mut item = self.quad_item(*rect, texture, *tint, self.white);
-                    item.uv_transform = [0.0, 0.0, 1.0, 1.0];
-                    items.push(item);
+                    items.extend(self.quad_item(*rect, texture, *tint, [0.0, 0.0, 1.0, 1.0], clip));
                 }
                 Command::Text {
                     rect,
                     text,
                     size,
                     color,
-                } => self.glyphs(&mut items, *rect, text, *size, *color, texture),
+                } => self.glyphs(&mut items, *rect, text, *size, *color, texture, clip),
             }
         }
 
         items
+    }
+
+    /// En atlasruta i pixlar till normaliserad UV.
+    fn atlas_uv(&self, atlas: ymer_ui::Rect) -> [f32; 4] {
+        let (aw, ah) = (self.size.0 as f32, self.size.1 as f32);
+        [
+            atlas.x / aw,
+            atlas.y / ah,
+            atlas.width / aw,
+            atlas.height / ah,
+        ]
     }
 
     fn glyphs(
@@ -114,6 +156,7 @@ impl UiBackend {
         size: f32,
         color: ymer_ui::Color,
         texture: TextureId,
+        clip: ymer_ui::Rect,
     ) {
         let line_height = {
             use ymer_ui::TextMeasure;
@@ -138,7 +181,8 @@ impl UiBackend {
                         glyph.atlas.width,
                         glyph.atlas.height,
                     );
-                    items.push(self.quad_item(slot, texture, color, glyph.atlas));
+                    let uv = self.atlas_uv(glyph.atlas);
+                    items.extend(self.quad_item(slot, texture, color, uv, clip));
                 }
                 pen_x += glyph.advance;
             }
@@ -146,13 +190,48 @@ impl UiBackend {
         }
     }
 
-    /// En kvadrat i skärmrymd med en ruta ur atlasen som UV.
+    /// En kvadrat i skärmrymd, skuren mot sitt klipp.
+    ///
+    /// `None` när ingenting av den syns. UV:n trimmas i samma andelar som
+    /// rektangeln, så en halv glyf visar halva glyfen och inte en
+    /// ihoptryckt hel.
     fn quad_item(
         &self,
         rect: ymer_ui::Rect,
         texture: TextureId,
         color: ymer_ui::Color,
-        atlas: ymer_ui::Rect,
+        uv: [f32; 4],
+        clip: ymer_ui::Rect,
+    ) -> Option<DrawItem> {
+        let visible = rect.intersect(clip);
+        if visible.is_empty() {
+            return None;
+        }
+        let uv = if visible == rect {
+            uv
+        } else {
+            // Andelen av originalrektangeln som blev kvar, per kant.
+            let fx = (visible.x - rect.x) / rect.width.max(f32::EPSILON);
+            let fy = (visible.y - rect.y) / rect.height.max(f32::EPSILON);
+            let fw = visible.width / rect.width.max(f32::EPSILON);
+            let fh = visible.height / rect.height.max(f32::EPSILON);
+            [
+                uv[0] + uv[2] * fx,
+                uv[1] + uv[3] * fy,
+                uv[2] * fw,
+                uv[3] * fh,
+            ]
+        };
+        Some(self.quad(visible, texture, color, uv))
+    }
+
+    /// En kvadrat i skärmrymd med färdig UV.
+    fn quad(
+        &self,
+        rect: ymer_ui::Rect,
+        texture: TextureId,
+        color: ymer_ui::Color,
+        uv: [f32; 4],
     ) -> DrawItem {
         // BUILTIN_QUAD är 1x1 med origo i mitten; skala till rutan och
         // flytta till dess mittpunkt.
@@ -167,19 +246,13 @@ impl UiBackend {
         let transform = Mat4::from_translation(Vec3::new(center.x, center.y, 0.0))
             * Mat4::from_scale(Vec3::new(rect.width, -rect.height, 1.0));
 
-        let (aw, ah) = (self.size.0 as f32, self.size.1 as f32);
         let mut item = DrawItem::new(
             self.quad,
             texture,
             transform,
             ymer_core::Color::rgba(color.r, color.g, color.b, color.a),
         );
-        item.uv_transform = [
-            atlas.x / aw,
-            atlas.y / ah,
-            atlas.width / aw,
-            atlas.height / ah,
-        ];
+        item.uv_transform = uv;
         item
     }
 }

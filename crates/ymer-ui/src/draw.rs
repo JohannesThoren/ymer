@@ -36,9 +36,23 @@ pub enum Command {
     },
 }
 
+/// Ett ritkommando och den yta det får synas inom.
+///
+/// Klippet ligger *utanför* kommandot, inte som ett fält i varje variant,
+/// för att det inte ska gå att läsa ett kommando utan att se sitt klipp.
+/// En konsument som struntar i det ritar rader som rullat ur bild, och
+/// felet syns bara när någon rullar – alltså sällan.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Clipped {
+    /// Snittet av de klippande förfäderna. `Rect::EVERYTHING` betyder att
+    /// ingenting klipper, vilket är det vanliga fallet.
+    pub clip: Rect,
+    pub command: Command,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DrawList {
-    pub commands: Vec<Command>,
+    pub commands: Vec<Clipped>,
 }
 
 impl DrawList {
@@ -48,6 +62,16 @@ impl DrawList {
 
     pub fn len(&self) -> usize {
         self.commands.len()
+    }
+
+    pub fn push(&mut self, clip: Rect, command: Command) {
+        // Helt bortklippta kommandon slängs här istället för hos varje
+        // konsument. Det är också det som gör en lång lista billig att
+        // rita: bara de rader som syns hamnar i listan.
+        if clip.is_empty() {
+            return;
+        }
+        self.commands.push(Clipped { clip, command });
     }
 }
 
@@ -91,6 +115,9 @@ pub fn draw_with(
         && let (Some(node), Some(rect)) = (document.find(open), laid_out.rect(open))
         && let Kind::Dropdown { options, .. } = &node.kind
     {
+        // Listan flyter ovanpå allt och klipps inte av sin förälder – en
+        // dropdown i en rullbar panel ska kunna fällas ut fritt.
+        let clip = Rect::EVERYTHING;
         let row = rect.height.max(1.0);
         let panel = node
             .style
@@ -99,17 +126,23 @@ pub fn draw_with(
         for (i, option) in options.iter().enumerate() {
             let slot = Rect::new(rect.x, rect.bottom() + row * i as f32, rect.width, row);
             let hovered = slot.contains(state.pointer_position());
-            list.commands.push(Command::Rect {
-                rect: slot,
-                color: if hovered { shade(panel, 1.3) } else { panel },
-                radius: 0.0,
-            });
-            list.commands.push(Command::Text {
-                rect: slot.shrink(crate::geom::Edges::symmetric(6.0, 0.0)),
-                text: option.clone(),
-                size: node.style.font_size,
-                color: node.style.color,
-            });
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: slot,
+                    color: if hovered { shade(panel, 1.3) } else { panel },
+                    radius: 0.0,
+                },
+            );
+            list.push(
+                clip,
+                Command::Text {
+                    rect: slot.shrink(crate::geom::Edges::symmetric(6.0, 0.0)),
+                    text: option.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
         }
     }
 
@@ -131,7 +164,19 @@ fn emit(
         return;
     };
     let rect = placed.rect;
+    let clip = placed.clip;
+    let content = placed.content;
     *index += 1;
+
+    // Helt utanför sitt klipp: varken noden eller dess barn kan synas.
+    // Barnen måste ändå räknas bort ur `index`, annars glider listan ur
+    // fas med trädet och alla efterföljande noder ritas på fel plats.
+    if rect.intersect(clip).is_empty() {
+        for child in &node.children {
+            skip(child, index);
+        }
+        return;
+    }
 
     let interactive = matches!(
         node.kind,
@@ -149,28 +194,37 @@ fn emit(
         } else {
             background
         };
-        list.commands.push(Command::Rect {
-            rect,
-            color,
-            radius: node.style.radius,
-        });
+        list.push(
+            clip,
+            Command::Rect {
+                rect,
+                color,
+                radius: node.style.radius,
+            },
+        );
     }
 
     match &node.kind {
         Kind::Label { text } | Kind::Button { text } => {
-            list.commands.push(Command::Text {
-                rect: rect.shrink(node.style.padding),
-                text: text.clone(),
-                size: node.style.font_size,
-                color: node.style.color,
-            });
+            list.push(
+                clip,
+                Command::Text {
+                    rect: rect.shrink(node.style.padding),
+                    text: text.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
         }
         Kind::Image { source } => {
-            list.commands.push(Command::Image {
-                rect,
-                source: source.clone(),
-                tint: node.style.color,
-            });
+            list.push(
+                clip,
+                Command::Image {
+                    rect,
+                    source: source.clone(),
+                    tint: node.style.color,
+                },
+            );
         }
         Kind::Bar { value, fill } => {
             let inner = rect.shrink(node.style.padding);
@@ -181,11 +235,14 @@ fn emit(
                 inner.height,
             );
             if !filled.is_empty() {
-                list.commands.push(Command::Rect {
-                    rect: filled,
-                    color: *fill,
-                    radius: node.style.radius,
-                });
+                list.push(
+                    clip,
+                    Command::Rect {
+                        rect: filled,
+                        color: *fill,
+                        radius: node.style.radius,
+                    },
+                );
             }
         }
         Kind::Checkbox { label, checked } | Kind::Radio { label, checked, .. } => {
@@ -197,37 +254,46 @@ fn emit(
                 box_size,
                 box_size,
             );
-            list.commands.push(Command::Rect {
-                rect: square,
-                color: Color::rgb(0.12, 0.13, 0.17),
-                // Radioknappen är rund, kryssrutan kantig. Rundningen är
-                // ritarens ansvar; mjukvaruexemplet struntar i den.
-                radius: if radio { box_size * 0.5 } else { 3.0 },
-            });
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: square,
+                    color: Color::rgb(0.12, 0.13, 0.17),
+                    // Radioknappen är rund, kryssrutan kantig. Rundningen är
+                    // ritarens ansvar; mjukvaruexemplet struntar i den.
+                    radius: if radio { box_size * 0.5 } else { 3.0 },
+                },
+            );
             if *checked {
                 let inset = box_size * 0.28;
-                list.commands.push(Command::Rect {
-                    rect: Rect::new(
-                        square.x + inset,
-                        square.y + inset,
-                        box_size - inset * 2.0,
-                        box_size - inset * 2.0,
-                    ),
-                    color: node.style.color,
-                    radius: if radio { box_size * 0.5 } else { 2.0 },
-                });
+                list.push(
+                    clip,
+                    Command::Rect {
+                        rect: Rect::new(
+                            square.x + inset,
+                            square.y + inset,
+                            box_size - inset * 2.0,
+                            box_size - inset * 2.0,
+                        ),
+                        color: node.style.color,
+                        radius: if radio { box_size * 0.5 } else { 2.0 },
+                    },
+                );
             }
-            list.commands.push(Command::Text {
-                rect: Rect::new(
-                    square.right() + metrics::GAP,
-                    rect.y,
-                    (rect.width - box_size - metrics::GAP).max(0.0),
-                    rect.height,
-                ),
-                text: label.clone(),
-                size: node.style.font_size,
-                color: node.style.color,
-            });
+            list.push(
+                clip,
+                Command::Text {
+                    rect: Rect::new(
+                        square.right() + metrics::GAP,
+                        rect.y,
+                        (rect.width - box_size - metrics::GAP).max(0.0),
+                        rect.height,
+                    ),
+                    text: label.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
         }
 
         Kind::Slider {
@@ -242,32 +308,41 @@ fn emit(
                 rect.width,
                 track_height,
             );
-            list.commands.push(Command::Rect {
-                rect: track,
-                color: Color::rgb(0.12, 0.13, 0.17),
-                radius: track_height * 0.5,
-            });
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: track,
+                    color: Color::rgb(0.12, 0.13, 0.17),
+                    radius: track_height * 0.5,
+                },
+            );
             // Fylld del fram till greppet.
             let travel = (rect.width - metrics::HANDLE).max(0.0);
-            list.commands.push(Command::Rect {
-                rect: Rect::new(
-                    track.x,
-                    track.y,
-                    metrics::HANDLE * 0.5 + travel * t,
-                    track.height,
-                ),
-                color: node.style.color,
-                radius: track_height * 0.5,
-            });
-            list.commands.push(Command::Rect {
-                rect: Rect::new(rect.x + travel * t, rect.y, metrics::HANDLE, rect.height),
-                color: if hovered || held {
-                    shade(node.style.color, 1.25)
-                } else {
-                    Color::rgb(0.86, 0.89, 0.94)
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: Rect::new(
+                        track.x,
+                        track.y,
+                        metrics::HANDLE * 0.5 + travel * t,
+                        track.height,
+                    ),
+                    color: node.style.color,
+                    radius: track_height * 0.5,
                 },
-                radius: metrics::HANDLE * 0.5,
-            });
+            );
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: Rect::new(rect.x + travel * t, rect.y, metrics::HANDLE, rect.height),
+                    color: if hovered || held {
+                        shade(node.style.color, 1.25)
+                    } else {
+                        Color::rgb(0.86, 0.89, 0.94)
+                    },
+                    radius: metrics::HANDLE * 0.5,
+                },
+            );
         }
 
         Kind::TextInput {
@@ -277,23 +352,27 @@ fn emit(
             let focused = state.focused.as_deref() == Some(node.id.as_str());
             let inner = rect.shrink(node.style.padding);
             let empty = value.is_empty();
-            list.commands.push(Command::Text {
-                rect: inner,
-                text: if empty {
-                    placeholder.clone()
-                } else {
-                    value.clone()
+            list.push(
+                clip,
+                Command::Text {
+                    rect: inner,
+                    text: if empty {
+                        placeholder.clone()
+                    } else {
+                        value.clone()
+                    },
+                    size: node.style.font_size,
+                    color: if empty {
+                        node.style.color.with_alpha(0.45)
+                    } else {
+                        node.style.color
+                    },
                 },
-                size: node.style.font_size,
-                color: if empty {
-                    node.style.color.with_alpha(0.45)
-                } else {
-                    node.style.color
-                },
-            });
+            );
             if focused {
                 caret(
                     list,
+                    clip,
                     inner,
                     value,
                     state.caret,
@@ -307,12 +386,15 @@ fn emit(
         Kind::TextArea { text: value, .. } => {
             let focused = state.focused.as_deref() == Some(node.id.as_str());
             let inner = rect.shrink(node.style.padding);
-            list.commands.push(Command::Text {
-                rect: inner,
-                text: value.clone(),
-                size: node.style.font_size,
-                color: node.style.color,
-            });
+            list.push(
+                clip,
+                Command::Text {
+                    rect: inner,
+                    text: value.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
             if focused {
                 // Markören hamnar på den rad den står i.
                 let before: String = value.chars().take(state.caret).collect();
@@ -320,16 +402,19 @@ fn emit(
                 let row = before.matches('\n').count() as f32;
                 let line_height = text.measure("M", node.style.font_size).y;
                 let offset = text.measure(line, node.style.font_size).x;
-                list.commands.push(Command::Rect {
-                    rect: Rect::new(
-                        inner.x + offset,
-                        inner.y + row * line_height,
-                        metrics::CARET,
-                        line_height,
-                    ),
-                    color: node.style.color,
-                    radius: 0.0,
-                });
+                list.push(
+                    clip,
+                    Command::Rect {
+                        rect: Rect::new(
+                            inner.x + offset,
+                            inner.y + row * line_height,
+                            metrics::CARET,
+                            line_height,
+                        ),
+                        color: node.style.color,
+                        radius: 0.0,
+                    },
+                );
             }
         }
 
@@ -340,29 +425,70 @@ fn emit(
         } => {
             let inner = rect.shrink(node.style.padding);
             let chosen = selected.and_then(|i| options.get(i));
-            list.commands.push(Command::Text {
-                rect: inner,
-                text: chosen.cloned().unwrap_or_else(|| placeholder.clone()),
-                size: node.style.font_size,
-                color: if chosen.is_some() {
-                    node.style.color
-                } else {
-                    node.style.color.with_alpha(0.45)
+            list.push(
+                clip,
+                Command::Text {
+                    rect: inner,
+                    text: chosen.cloned().unwrap_or_else(|| placeholder.clone()),
+                    size: node.style.font_size,
+                    color: if chosen.is_some() {
+                        node.style.color
+                    } else {
+                        node.style.color.with_alpha(0.45)
+                    },
                 },
-            });
+            );
             // Pilen: en liten platta i högerkanten. Att rita en triangel
             // hade krävt ett nytt ritkommando, och listan ska vara smal.
             let size = metrics::ARROW * 0.5;
-            list.commands.push(Command::Rect {
-                rect: Rect::new(
-                    inner.right() - metrics::ARROW,
-                    inner.y + (inner.height - size) * 0.5,
-                    size,
-                    size,
-                ),
-                color: node.style.color.with_alpha(0.7),
-                radius: 1.0,
-            });
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: Rect::new(
+                        inner.right() - metrics::ARROW,
+                        inner.y + (inner.height - size) * 0.5,
+                        size,
+                        size,
+                    ),
+                    color: node.style.color.with_alpha(0.7),
+                    radius: 1.0,
+                },
+            );
+        }
+
+        Kind::Scroll { offset } => {
+            // En rullningslist, men bara när det finns något att rulla.
+            // Den ritas *före* barnen och hamnar därför under dem; det gör
+            // inget, för den ligger i kanten där inget innehåll når.
+            let inner = rect.shrink(node.style.padding);
+            if content.y > inner.height + 0.5 {
+                let bar = Rect::new(
+                    inner.right() - metrics::SCROLLBAR,
+                    inner.y,
+                    metrics::SCROLLBAR,
+                    inner.height,
+                );
+                let andel = (inner.height / content.y).clamp(0.05, 1.0);
+                let travel = inner.height * (1.0 - andel);
+                let max = (content.y - inner.height).max(1.0);
+                let t = (offset.y / max).clamp(0.0, 1.0);
+                list.push(
+                    clip,
+                    Command::Rect {
+                        rect: bar,
+                        color: Color::rgba(0.0, 0.0, 0.0, 0.25),
+                        radius: metrics::SCROLLBAR * 0.5,
+                    },
+                );
+                list.push(
+                    clip,
+                    Command::Rect {
+                        rect: Rect::new(bar.x, bar.y + travel * t, bar.width, inner.height * andel),
+                        color: node.style.color.with_alpha(0.5),
+                        radius: metrics::SCROLLBAR * 0.5,
+                    },
+                );
+            }
         }
 
         Kind::Panel | Kind::Spacer => {}
@@ -376,6 +502,7 @@ fn emit(
 /// Textmarkören efter `caret` tecken.
 fn caret(
     list: &mut DrawList,
+    clip: Rect,
     inner: Rect,
     value: &str,
     caret: usize,
@@ -386,12 +513,29 @@ fn caret(
     let before: String = value.chars().take(caret).collect();
     let offset = text.measure(&before, size).x;
     let height = text.measure("M", size).y;
-    list.commands.push(Command::Rect {
-        rect: Rect::new(inner.x + offset, inner.y, metrics::CARET, height),
-        color,
-        radius: 0.0,
-    });
+    list.push(
+        clip,
+        Command::Rect {
+            rect: Rect::new(inner.x + offset, inner.y, metrics::CARET, height),
+            color,
+            radius: 0.0,
+        },
+    );
     let _ = Vec2::ZERO;
+}
+
+/// Räknar bort ett delträd ur `index` utan att rita det.
+///
+/// Osynliga noder hoppas över redan i layouten, så bara de synliga har en
+/// plats i listan – samma filter måste gälla här.
+fn skip(node: &Node, index: &mut usize) {
+    if !node.style.visible {
+        return;
+    }
+    *index += 1;
+    for child in &node.children {
+        skip(child, index);
+    }
 }
 
 /// Ljusare eller mörkare variant, för hovrade och nedtryckta knappar.

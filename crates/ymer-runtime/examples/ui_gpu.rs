@@ -47,6 +47,18 @@ fn main() -> anyhow::Result<()> {
     let viewport = Rect::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32);
     let mut state = State::default();
 
+    // Rulla listan en bit, så att klippningen faktiskt prövas.
+    let laid_out = layout(&document, viewport, backend.atlas());
+    state.update(
+        &mut document,
+        &laid_out,
+        Pointer {
+            position: laid_out.rect("lista").unwrap().center(),
+            scroll: Vec2::new(0.0, 30.0),
+            ..Default::default()
+        },
+    );
+
     // Hovra en knapp, så att det syns att interaktionen lever.
     let laid_out = layout(&document, viewport, backend.atlas());
     if let Some(rect) = laid_out.rect("spela") {
@@ -154,6 +166,41 @@ fn hud() -> Document {
                                 .with_radius(4.0)
                                 .with_font_size(13.0),
                         ),
+                    ]),
+            )
+            // En rullad lista, för att visa klippningen. Den är rullad
+            // 30 px, så första raden är halvt avskuren i överkanten och
+            // den nedersta klipps mitt i sina glyfer.
+            .with_child(
+                Node::panel()
+                    .with_style(
+                        Style::column()
+                            .with_size(Size::Fixed(240.0), Size::Fixed(160.0))
+                            .with_anchor(Anchor::CenterRight)
+                            .with_offset(Vec2::new(-18.0, 10.0))
+                            .with_padding(Edges::all(10.0))
+                            .with_gap(8.0)
+                            .with_background(PANEL)
+                            .with_radius(8.0),
+                    )
+                    .with_children([
+                        Node::label("Hierarki").with_style(Style::default().with_font_size(15.0)),
+                        Node::scroll("lista")
+                            .with_style(
+                                Style::column()
+                                    .with_size(Size::Fill, Size::Fill)
+                                    .with_clip(true)
+                                    .with_gap(2.0),
+                            )
+                            .with_children((0..12).map(|i| {
+                                Node::button(format!("rad{i}"), format!("entitet {i}")).with_style(
+                                    Style::default()
+                                        .with_size(Size::Fill, Size::Fixed(20.0))
+                                        .with_padding(Edges::symmetric(6.0, 3.0))
+                                        .with_background(Color::rgb(0.17, 0.19, 0.24))
+                                        .with_font_size(12.0),
+                                )
+                            })),
                     ]),
             )
             // Statusrad.

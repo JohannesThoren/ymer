@@ -491,7 +491,7 @@ fn oppen_lista_ritas_ovanpa() {
     let texter: Vec<&str> = list
         .commands
         .iter()
-        .filter_map(|c| match c {
+        .filter_map(|c| match &c.command {
             Command::Text { text, .. } => Some(text.as_str()),
             _ => None,
         })

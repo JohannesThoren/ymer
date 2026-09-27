@@ -115,6 +115,9 @@ pub struct Style {
     /// Stänger av träffytan utan att dölja noden. En etikett ovanpå en
     /// knapp ska inte stjäla klicket.
     pub hit_test: bool,
+    /// Klipper barnen till nodens inneryta. Utan det ritas ett barn som
+    /// inte får plats utanför sin förälder, och kan dessutom klickas där.
+    pub clip: bool,
 }
 
 impl Default for Style {
@@ -135,6 +138,7 @@ impl Default for Style {
             radius: 0.0,
             visible: true,
             hit_test: true,
+            clip: false,
         }
     }
 }
@@ -207,6 +211,18 @@ impl Style {
 
     pub fn with_justify(mut self, justify: Justify) -> Self {
         self.justify = justify;
+        self
+    }
+
+    /// Klipper barnen till innerytan.
+    pub fn with_clip(mut self, clip: bool) -> Self {
+        self.clip = clip;
+        self
+    }
+
+    /// Tar bort nodens träffyta utan att dölja den.
+    pub fn without_hit_test(mut self) -> Self {
+        self.hit_test = false;
         self
     }
 

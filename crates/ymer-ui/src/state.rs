@@ -20,6 +20,9 @@ pub struct Pointer {
     pub pressed: bool,
     /// Knappen släpptes den här framen.
     pub released: bool,
+    /// Hjulets rörelse den här framen, i pixlar. Positiv y rullar nedåt i
+    /// innehållet, som i alla andra gränssnitt.
+    pub scroll: Vec2,
 }
 
 /// Tangenter som betyder något för ett textfält.
@@ -105,6 +108,9 @@ pub struct Events {
     /// Pekaren är över gränssnittet. Spelet bakom ska då inte reagera –
     /// samma problem som `UiFocus` löser för egui.
     pub pointer_over_ui: bool,
+    /// Hjulet togs av en rullbar yta. Spelet – eller editorns kamera –
+    /// ska då inte också zooma.
+    pub scroll_consumed: bool,
     /// Ett fält har tangentbordsfokus. Spelet ska då inte tolka WASD som
     /// rörelse medan någon skriver sitt namn.
     pub keyboard_captured: bool,
@@ -162,6 +168,16 @@ impl State {
         self.hovered = hit.clone();
         self.pointer_down = pointer.down;
         self.pointer_position = pointer.position;
+
+        // Hjulet först, och skilt från klick: man ska kunna rulla en lista
+        // utan att markeringen i den ändras.
+        if pointer.scroll != Vec2::ZERO
+            && let Some(id) = scroll_target(document, laid_out, pointer.position)
+        {
+            self.scroll_by(document, laid_out, &id, pointer.scroll);
+            events.scroll_consumed = true;
+            events.pointer_over_ui = true;
+        }
 
         // --- öppen dropdown tar pekaren först ---------------------------
         if let Some(open_id) = self.open.clone() {
@@ -284,6 +300,26 @@ impl State {
             }
             _ => {}
         }
+    }
+
+    /// Rullar en yta, klamrat till vad innehållet räcker till.
+    ///
+    /// Utan klampningen kan man rulla en kort lista långt ut i tomrummet
+    /// och sedan behöva rulla tillbaka lika långt – innehållet ser ut att
+    /// ha försvunnit.
+    fn scroll_by(&self, document: &mut Document, laid_out: &LaidOut, id: &str, delta: Vec2) {
+        let Some(placed) = laid_out.placed(id) else {
+            return;
+        };
+        let max = Vec2::new(
+            (placed.content.x - placed.inner.width).max(0.0),
+            (placed.content.y - placed.inner.height).max(0.0),
+        );
+        let Some(Kind::Scroll { offset }) = document.find_mut(id).map(|n| &mut n.kind) else {
+            return;
+        };
+        offset.x = (offset.x + delta.x).clamp(0.0, max.x);
+        offset.y = (offset.y + delta.y).clamp(0.0, max.y);
     }
 
     /// Sätter reglagets värde efter pekarens x-läge.
@@ -427,15 +463,48 @@ fn takes_keyboard(kind: &Kind) -> bool {
 pub fn hit_test(document: &Document, laid_out: &LaidOut, point: Vec2) -> Option<String> {
     let mut index = 0usize;
     let mut best: Option<(usize, String)> = None;
-    visit(
-        &document.root,
-        laid_out,
-        point,
-        &mut index,
-        &mut best,
-        Rect::new(f32::MIN / 2.0, f32::MIN / 2.0, f32::MAX, f32::MAX),
-    );
+    visit(&document.root, laid_out, point, &mut index, &mut best);
     best.map(|(_, id)| id)
+}
+
+/// Den innersta rullbara ytan under punkten.
+///
+/// Innersta, inte yttersta: en lista inuti en panel som också rullar ska
+/// ta hjulet själv, precis som i varje annat gränssnitt.
+fn scroll_target(document: &Document, laid_out: &LaidOut, point: Vec2) -> Option<String> {
+    let mut index = 0usize;
+    let mut best: Option<(usize, String)> = None;
+    find_scroll(&document.root, laid_out, point, &mut index, &mut best);
+    best.map(|(_, id)| id)
+}
+
+fn find_scroll(
+    node: &Node,
+    laid_out: &LaidOut,
+    point: Vec2,
+    index: &mut usize,
+    best: &mut Option<(usize, String)>,
+) {
+    if !node.style.visible {
+        return;
+    }
+    let Some(placed) = laid_out.nodes.get(*index) else {
+        return;
+    };
+    let (rect, clip, depth) = (placed.rect, placed.clip, placed.depth);
+    *index += 1;
+
+    if matches!(node.kind, Kind::Scroll { .. })
+        && !node.id.is_empty()
+        && rect.intersect(clip).contains(point)
+        && best.as_ref().is_none_or(|(d, _)| depth >= *d)
+    {
+        *best = Some((depth, node.id.clone()));
+    }
+
+    for child in &node.children {
+        find_scroll(child, laid_out, point, index, best);
+    }
 }
 
 /// Kan noden träffas av pekaren?
@@ -465,7 +534,6 @@ fn visit(
     point: Vec2,
     index: &mut usize,
     best: &mut Option<(usize, String)>,
-    clip: Rect,
 ) {
     if !node.style.visible {
         return;
@@ -477,8 +545,10 @@ fn visit(
     let depth = placed.depth;
     *index += 1;
 
-    // En nod utanför förälderns yta kan inte träffas.
-    let visible_rect = rect.intersect(clip);
+    // Klippet kommer ur layouten, samma värde ritaren använder. Det är
+    // avsiktligt: det man ser är det man kan klicka. En rad som rullat ur
+    // sin lista ritas inte, och ska då inte heller kunna träffas.
+    let visible_rect = rect.intersect(placed.clip);
 
     if hittable(node) && visible_rect.contains(point) {
         let deeper = best
@@ -490,6 +560,6 @@ fn visit(
     }
 
     for child in &node.children {
-        visit(child, laid_out, point, index, best, visible_rect);
+        visit(child, laid_out, point, index, best);
     }
 }

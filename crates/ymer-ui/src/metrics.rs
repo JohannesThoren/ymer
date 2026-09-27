@@ -14,3 +14,5 @@ pub const ARROW: f32 = 10.0;
 pub const MIN_FIELD: f32 = 80.0;
 /// Textmarkörens bredd.
 pub const CARET: f32 = 1.0;
+/// Rullningslistens bredd.
+pub const SCROLLBAR: f32 = 6.0;

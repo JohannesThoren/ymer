@@ -223,6 +223,10 @@ pub mod primitives {
 #[derive(Default)]
 pub struct TextureRegistry {
     bind_groups: Vec<wgpu::BindGroup>,
+    /// Själva texturerna, för den som vill skriva om en på plats.
+    /// Bindgruppen pekar på vyn, så ett innehållsbyte syns utan att
+    /// gruppen behöver byggas om – och framför allt utan att id:t ändras.
+    textures: Vec<wgpu::Texture>,
 }
 
 impl TextureRegistry {
@@ -651,7 +655,46 @@ impl Renderer {
         });
 
         self.textures.bind_groups.push(bind_group);
+        self.textures.textures.push(texture);
         TextureId(self.textures.bind_groups.len() as u32 - 1)
+    }
+
+    /// Skriver om en textur på plats, med samma id.
+    ///
+    /// För något som ändras under körning – en glyfatlas som fyllts på –
+    /// är det inte bara billigare än en ny textur, utan nödvändigt: id:t
+    /// kan redan ha hamnat i en halvbyggd ritlista, och en ny textur hade
+    /// gjort de instanserna pekande på det gamla innehållet.
+    ///
+    /// Måtten måste stämma med texturens; annars görs ingenting och
+    /// `false` returneras.
+    pub fn update_texture(&mut self, id: TextureId, rgba: &[u8], width: u32, height: u32) -> bool {
+        let Some(texture) = self.textures.textures.get(id.0 as usize) else {
+            return false;
+        };
+        if texture.width() != width || texture.height() != height {
+            return false;
+        }
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            rgba,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        true
     }
 
     /// Avkodar en PNG och laddar upp den.

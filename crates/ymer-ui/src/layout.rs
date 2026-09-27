@@ -24,6 +24,16 @@ pub struct Placed {
     /// Djup i trädet; roten är 0. Ritordning följer listan, och djupet
     /// används för att avgöra vilken träff som ligger överst.
     pub depth: usize,
+    /// Den yta noden faktiskt syns inom: snittet av alla klippande
+    /// förfäder. `Rect::EVERYTHING` när ingen klipper.
+    ///
+    /// Både ritaren och träffprövningen måste läsa den. En rad som rullat
+    /// ut ur sin lista har fortfarande en `rect` – den ligger bara utanför
+    /// sitt klipp, och ska då varken ritas eller kunna klickas.
+    pub clip: Rect,
+    /// Barnens samlade storlek. Skiljer sig från `inner` bara i en
+    /// rullbar nod, och är det som avgör hur långt den kan rullas.
+    pub content: Vec2,
 }
 
 /// Resultatet av ett layoutpass, parallellt med trädet.
@@ -34,10 +44,18 @@ pub struct LaidOut {
 
 impl LaidOut {
     pub fn rect(&self, id: &str) -> Option<Rect> {
-        self.nodes
-            .iter()
-            .find(|placed| placed.id == id)
-            .map(|placed| placed.rect)
+        self.placed(id).map(|placed| placed.rect)
+    }
+
+    pub fn placed(&self, id: &str) -> Option<&Placed> {
+        self.nodes.iter().find(|placed| placed.id == id)
+    }
+
+    /// Den synliga delen av en nod: dess rektangel klippt mot förfäderna.
+    /// Tom när noden rullat helt ur bild.
+    pub fn visible_rect(&self, id: &str) -> Option<Rect> {
+        self.placed(id)
+            .map(|placed| placed.rect.intersect(placed.clip))
     }
 }
 
@@ -117,8 +135,18 @@ fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
         // styrs av `width`/`height`. Att gissa på bildens pixelmått hade
         // krävt att layouten kände till texturerna.
         Kind::Image { .. } | Kind::Bar { .. } | Kind::Spacer => Vec2::ZERO,
-        Kind::Panel => Vec2::ZERO,
+        Kind::Panel | Kind::Scroll { .. } => Vec2::ZERO,
     };
+
+    // En rullbar yta får sin storlek utifrån, inte inifrån. Räknade den
+    // in barnen skulle den växa till hela innehållet och aldrig behöva
+    // rullas – vilket är samma sak som att inte vara rullbar.
+    if matches!(node.kind, Kind::Scroll { .. }) {
+        return Vec2::new(
+            resolve(style.width, padding.horizontal(), available.x),
+            resolve(style.height, padding.vertical(), available.y),
+        );
+    }
 
     // Barnens samlade storlek.
     let inner_available = Vec2::new(
@@ -217,6 +245,7 @@ pub fn layout(document: &Document, viewport: Rect, text: &dyn TextMeasure) -> La
         text,
         None,
         0,
+        viewport,
         &mut out,
     );
     out
@@ -228,6 +257,7 @@ fn place(
     text: &dyn TextMeasure,
     parent: Option<usize>,
     depth: usize,
+    clip: Rect,
     out: &mut LaidOut,
 ) {
     if !node.style.visible {
@@ -243,7 +273,17 @@ fn place(
         inner,
         parent,
         depth,
+        clip,
+        content: Vec2::ZERO,
     });
+
+    // Klippet gäller barnen, inte noden själv: en panel med `clip` ska
+    // rita sin egen bakgrund helt, bara inte låta innehållet rinna över.
+    let clip = if style.clip {
+        clip.intersect(inner)
+    } else {
+        clip
+    };
 
     let visible: Vec<&Node> = node
         .children
@@ -251,6 +291,35 @@ fn place(
         .filter(|child| child.style.visible)
         .collect();
     if visible.is_empty() {
+        return;
+    }
+
+    // En rullbar yta lägger barnen i en kolumn förskjuten av sin offset,
+    // och var och en får sin *egen* höjd. Att låta dem dela ytan som i en
+    // vanlig kolumn hade gjort innehållet lika högt som fönstret, och då
+    // finns inget att rulla.
+    if let Kind::Scroll { offset } = &node.kind {
+        let mut cursor = 0.0f32;
+        for (i, child) in visible.iter().enumerate() {
+            let size = measure(child, text, inner.size());
+            let width = if child.style.width == Size::Fill {
+                inner.width
+            } else {
+                size.x.min(inner.width)
+            };
+            let rect = Rect::new(
+                inner.x - offset.x,
+                inner.y - offset.y + cursor,
+                width,
+                size.y,
+            );
+            place(child, rect, text, Some(index), depth + 1, clip, out);
+            cursor += size.y;
+            if i + 1 < visible.len() {
+                cursor += style.gap;
+            }
+        }
+        out.nodes[index].content = Vec2::new(inner.width, cursor);
         return;
     }
 
@@ -270,6 +339,7 @@ fn place(
                     text,
                     Some(index),
                     depth + 1,
+                    clip,
                     out,
                 );
             }
@@ -363,9 +433,14 @@ fn place(
                     Rect::new(inner.x + cross_offset, inner.y + cursor, cross_size, main)
                 };
 
-                place(child, rect, text, Some(index), depth + 1, out);
+                place(child, rect, text, Some(index), depth + 1, clip, out);
                 cursor += main + between;
             }
+            out.nodes[index].content = if row {
+                Vec2::new(cursor, inner.height)
+            } else {
+                Vec2::new(inner.width, cursor)
+            };
         }
     }
 }

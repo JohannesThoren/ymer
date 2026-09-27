@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::geom::Vec2;
 use crate::style::Style;
 
 /// Vad noden faktiskt är.
@@ -65,6 +66,14 @@ pub enum Kind {
     TextArea {
         text: String,
         rows: u32,
+    },
+    /// Ett fönster in i ett större innehåll.
+    ///
+    /// Förskjutningen bor i noden, som alla andra värden: en editor som
+    /// bygger om sitt dokument varje frame ska inte tappa var listan var
+    /// rullad. Barnen läggs som en kolumn och klipps till nodens inneryta.
+    Scroll {
+        offset: Vec2,
     },
     Dropdown {
         options: Vec<String>,
@@ -197,6 +206,15 @@ impl Node {
             rows: rows.max(1),
         })
         .with_id(id)
+    }
+
+    /// En rullbar yta. Den *måste* få en storlek – dess egenstorlek är
+    /// noll, eftersom en yta som mäter sig efter sitt innehåll aldrig
+    /// behöver rullas.
+    pub fn scroll(id: impl Into<String>) -> Self {
+        Self::new(Kind::Scroll { offset: Vec2::ZERO })
+            .with_id(id)
+            .with_style(crate::style::Style::column().with_clip(true))
     }
 
     pub fn dropdown(

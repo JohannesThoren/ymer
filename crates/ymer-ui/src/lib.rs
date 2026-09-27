@@ -59,7 +59,7 @@ pub mod state;
 pub mod style;
 pub mod text;
 
-pub use draw::{Command, DrawList, draw, draw_with};
+pub use draw::{Clipped, Command, DrawList, draw, draw_with};
 pub use geom::{Color, Edges, Rect, Vec2};
 pub use layout::{LaidOut, Placed, layout};
 pub use node::{Document, Kind, Node, NodeValue};
@@ -71,11 +71,11 @@ pub use text::{MonospaceMetrics, TextMeasure};
 pub use text::{Font, FontAtlas};
 
 pub mod prelude {
-    pub use crate::draw::{Command, DrawList, draw, draw_with};
+    pub use crate::draw::{Clipped, Command, DrawList, draw, draw_with};
     pub use crate::geom::{Color, Edges, Rect, Vec2};
     pub use crate::layout::layout;
     pub use crate::node::{Document, Kind, Node, NodeValue};
-    pub use crate::state::{Events, Input, Key, Pointer, State};
+    pub use crate::state::{Events, Input, Key, Pointer, State, hit_test};
     pub use crate::style::{Align, Anchor, Justify, Layout, Size, Style};
     pub use crate::text::{MonospaceMetrics, TextMeasure};
 }
