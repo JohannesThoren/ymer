@@ -20,6 +20,11 @@ pub struct Pointer {
     pub pressed: bool,
     /// Knappen släpptes den här framen.
     pub released: bool,
+    /// Det här nedtrycket är det andra i ett dubbelklick.
+    ///
+    /// Biblioteket har ingen klocka och ska inte skaffa sig en; den som
+    /// bäddar in vet redan vad systemet räknar som ett dubbelklick.
+    pub double: bool,
     /// Hjulets rörelse den här framen, i pixlar. Positiv y rullar nedåt i
     /// innehållet, som i alla andra gränssnitt.
     pub scroll: Vec2,
@@ -89,6 +94,19 @@ pub struct State {
     pub open: Option<String>,
     /// Markörens plats i det fokuserade fältet, räknat i tecken.
     pub caret: usize,
+    /// Pekarens läge när dragningen började, och hur långt den flyttat
+    /// sig. Ett sifferfält skiljer på att dras och att klickas, och
+    /// skillnaden är just den här sträckan.
+    drag_origin: Vec2,
+    drag_distance: f32,
+    /// Nedtrycket som pågår var det andra i ett dubbelklick. Släppet är
+    /// det som räknas som klick, så flaggan måste överleva dit.
+    pressed_double: bool,
+    /// Hela utkastet i sifferfältet är markerat, så att första tecknet
+    /// ersätter det. Biblioteket har ingen allmän markering, men just den
+    /// här är inte en finess: ett fält där man klickar och skriver 7 ska
+    /// bli 7, inte 1.507.
+    select_all: bool,
     /// Pekarens senaste läge, så att ritaren kan hovra rader i en öppen
     /// dropdown utan att få pekaren skickad till sig separat.
     pointer_position: Vec2,
@@ -108,6 +126,9 @@ pub struct Events {
     /// Pekaren är över gränssnittet. Spelet bakom ska då inte reagera –
     /// samma problem som `UiFocus` löser för egui.
     pub pointer_over_ui: bool,
+    /// Id:n som dubbelklickades. En dubbelklickad nod rapporteras även
+    /// som klickad, så den som bara bryr sig om klick slipper veta.
+    pub double_clicked: Vec<String>,
     /// Hjulet togs av en rullbar yta. Spelet – eller editorns kamera –
     /// ska då inte också zooma.
     pub scroll_consumed: bool,
@@ -117,6 +138,11 @@ pub struct Events {
 }
 
 impl Events {
+    /// Dubbelklickades noden den här framen?
+    pub fn was_double_clicked(&self, id: &str) -> bool {
+        self.double_clicked.iter().any(|other| other == id)
+    }
+
     pub fn was_clicked(&self, id: &str) -> bool {
         self.clicked.iter().any(|clicked| clicked == id)
     }
@@ -208,9 +234,12 @@ impl State {
         // --- dragning ---------------------------------------------------
         if let Some(active) = self.active.clone() {
             if pointer.down {
-                if self.drag_slider(document, laid_out, &active, pointer.position) {
+                let delta = pointer.position - self.drag_origin;
+                self.drag_distance += delta.x.abs() + delta.y.abs();
+                if self.drag(document, laid_out, &active, pointer.position, delta) {
                     events.changed.push(active);
                 }
+                self.drag_origin = pointer.position;
                 events.pointer_over_ui = true;
                 events.keyboard_captured = self.focused.is_some();
                 return events;
@@ -221,6 +250,17 @@ impl State {
         // --- nedtryck ---------------------------------------------------
         if pointer.pressed {
             self.pressed = hit.clone();
+            self.pressed_double = pointer.double;
+
+            // Ett halvskrivet tal skrivs in när man klickar någon
+            // annanstans. Att slänga det hade varit det vanligaste sättet
+            // att tappa en inmatning.
+            if let Some(previous) = self.focused.clone()
+                && hit.as_deref() != Some(previous.as_str())
+                && self.commit_number(document, &previous, &mut events)
+            {
+                // `commit_number` lade redan till händelsen.
+            }
 
             // Fokus flyttas dit man tryckte, eller släpps.
             self.focused = hit.as_ref().and_then(|id| {
@@ -239,11 +279,20 @@ impl State {
             if let Some(id) = hit.clone()
                 && matches!(
                     document.find(&id).map(|n| &n.kind),
-                    Some(Kind::Slider { .. })
+                    Some(Kind::Slider { .. } | Kind::NumberField { .. } | Kind::Divider { .. })
                 )
             {
                 self.active = Some(id.clone());
-                if self.drag_slider(document, laid_out, &id, pointer.position) {
+                self.drag_origin = pointer.position;
+                self.drag_distance = 0.0;
+                // Reglaget hoppar dit man tryckte; sifferfältet och
+                // avdelaren rör sig bara av själva dragningen, annars
+                // hade ett klick slängt värdet någon helt annanstans.
+                if matches!(
+                    document.find(&id).map(|n| &n.kind),
+                    Some(Kind::Slider { .. })
+                ) && self.drag_slider(document, laid_out, &id, pointer.position)
+                {
                     events.changed.push(id);
                 }
             }
@@ -256,7 +305,16 @@ impl State {
                 && pressed == over
                 && !pressed.is_empty()
             {
+                if self.pressed_double {
+                    events.double_clicked.push(pressed.clone());
+                }
                 self.activate(document, &pressed, &mut events);
+                if matches!(
+                    document.find(&pressed).map(|n| &n.kind),
+                    Some(Kind::NumberField { .. })
+                ) {
+                    self.maybe_edit_number(document, &pressed);
+                }
             }
         }
 
@@ -298,8 +356,35 @@ impl State {
             Kind::Dropdown { .. } => {
                 self.open = Some(id.to_string());
             }
+            Kind::Collapsible { open, .. } => {
+                *open = !*open;
+                events.changed.push(id.to_string());
+            }
             _ => {}
         }
+    }
+
+    /// Ett klick på ett sifferfält som inte blev en dragning öppnar det
+    /// för skrivning. Gränsen är ett par pixlar: en darrig hand ska inte
+    /// betyda att man menade att dra.
+    fn maybe_edit_number(&mut self, document: &mut Document, id: &str) {
+        if self.drag_distance > 3.0 {
+            return;
+        }
+        let Some(Kind::NumberField {
+            value,
+            step,
+            editing,
+            ..
+        }) = document.find_mut(id).map(|n| &mut n.kind)
+        else {
+            return;
+        };
+        let text = crate::draw::format_number(*value, *step);
+        self.caret = text.chars().count();
+        *editing = Some(text);
+        self.focused = Some(id.to_string());
+        self.select_all = true;
     }
 
     /// Rullar en yta, klamrat till vad innehållet räcker till.
@@ -320,6 +405,30 @@ impl State {
         };
         offset.x = (offset.x + delta.x).clamp(0.0, max.x);
         offset.y = (offset.y + delta.y).clamp(0.0, max.y);
+    }
+
+    /// Fördelar en dragning på den sort noden är.
+    fn drag(
+        &mut self,
+        document: &mut Document,
+        laid_out: &LaidOut,
+        id: &str,
+        position: Vec2,
+        delta: Vec2,
+    ) -> bool {
+        match document.find(id).map(|n| &n.kind) {
+            Some(Kind::Slider { .. }) => self.drag_slider(document, laid_out, id, position),
+            Some(Kind::NumberField { .. }) => {
+                // Bara i sidled. Ett fält som ändrades av lodrät rörelse
+                // hade varit omöjligt att träffa exakt.
+                drag_number(document, id, delta.x as f64)
+            }
+            Some(Kind::Divider { vertical, .. }) => {
+                let along = if *vertical { delta.x } else { delta.y };
+                drag_divider(document, id, along)
+            }
+            _ => false,
+        }
     }
 
     /// Sätter reglagets värde efter pekarens x-läge.
@@ -360,6 +469,120 @@ impl State {
         }
     }
 
+    /// Samma som `type_into`, men mot sifferfältets utkasttext.
+    ///
+    /// Talet skrivs inte om tecken för tecken: `-` och `1.` är inte tal,
+    /// och ett fält som vägrade dem gick inte att skriva i. Utkastet
+    /// tolkas i stället när man trycker Enter eller lämnar fältet.
+    fn type_into_number(
+        &mut self,
+        document: &mut Document,
+        id: &str,
+        input: &Input,
+        events: &mut Events,
+    ) -> bool {
+        let Some(Kind::NumberField {
+            value,
+            step,
+            editing,
+            ..
+        }) = document.find_mut(id).map(|n| &mut n.kind)
+        else {
+            return false;
+        };
+
+        let mut chars: Vec<char> = editing
+            .clone()
+            .unwrap_or_else(|| crate::draw::format_number(*value, *step))
+            .chars()
+            .collect();
+        let mut caret = self.caret.min(chars.len());
+        let mut commit = false;
+        let mut abort = false;
+
+        // Att skriva eller radera ersätter markeringen; att flytta
+        // markören häver den bara.
+        if self.select_all && (!input.text.is_empty() || raderar(&input.keys)) {
+            chars.clear();
+            caret = 0;
+            self.select_all = false;
+        } else if !input.keys.is_empty() || !input.text.is_empty() {
+            self.select_all = false;
+        }
+
+        for key in &input.keys {
+            match key {
+                Key::Backspace if caret > 0 => {
+                    chars.remove(caret - 1);
+                    caret -= 1;
+                }
+                Key::Delete if caret < chars.len() => {
+                    chars.remove(caret);
+                }
+                Key::Left => caret = caret.saturating_sub(1),
+                Key::Right => caret = (caret + 1).min(chars.len()),
+                Key::Home => caret = 0,
+                Key::End => caret = chars.len(),
+                Key::Enter | Key::Tab => commit = true,
+                Key::Escape => abort = true,
+                _ => {}
+            }
+        }
+        for ch in input.text.chars() {
+            if ch.is_control() {
+                continue;
+            }
+            chars.insert(caret, ch);
+            caret += 1;
+        }
+
+        let draft: String = chars.into_iter().collect();
+        self.caret = caret;
+
+        if abort {
+            *editing = None;
+            self.focused = None;
+            return false;
+        }
+        *editing = Some(draft);
+        if commit {
+            self.focused = None;
+            return self.commit_number(document, id, events);
+        }
+        false
+    }
+
+    /// Tolkar utkastet och skriver det som tal.
+    ///
+    /// Otolkbar text slängs och fältet visar det gamla värdet igen. Att
+    /// nolla det i stället hade förvandlat ett tryckfel till förlorad
+    /// data.
+    fn commit_number(&mut self, document: &mut Document, id: &str, events: &mut Events) -> bool {
+        let Some(Kind::NumberField {
+            value,
+            min,
+            max,
+            editing,
+            ..
+        }) = document.find_mut(id).map(|n| &mut n.kind)
+        else {
+            return false;
+        };
+        let Some(draft) = editing.take() else {
+            return false;
+        };
+        let Ok(parsed) = draft.trim().replace(',', ".").parse::<f64>() else {
+            return false;
+        };
+        let new = parsed.clamp(*min, *max);
+        if (new - *value).abs() <= f64::EPSILON {
+            return false;
+        }
+        *value = new;
+        events.changed.push(id.to_string());
+        true
+    }
+
     /// Skriver in tecken och hanterar redigeringstangenter.
     fn type_into(
         &mut self,
@@ -368,6 +591,13 @@ impl State {
         input: &Input,
         events: &mut Events,
     ) -> bool {
+        if matches!(
+            document.find(id).map(|n| &n.kind),
+            Some(Kind::NumberField { .. })
+        ) {
+            return self.type_into_number(document, id, input, events);
+        }
+
         let Some(node) = document.find_mut(id) else {
             return false;
         };
@@ -453,6 +683,9 @@ impl State {
 }
 
 fn takes_keyboard(kind: &Kind) -> bool {
+    // Sifferfältet tar tangenter först när någon klickat i det – fokus
+    // sätts av `maybe_edit_number`, inte av nedtrycket. Annars hade en
+    // dragning stulit tangentbordet från spelet.
     matches!(kind, Kind::TextInput { .. } | Kind::TextArea { .. })
 }
 
@@ -507,6 +740,50 @@ fn find_scroll(
     }
 }
 
+/// Innehåller tangenterna något som raderar?
+fn raderar(keys: &[Key]) -> bool {
+    keys.iter()
+        .any(|key| matches!(key, Key::Backspace | Key::Delete))
+}
+
+/// Flyttar ett sifferfält `pixels` steg. Returnerar sant om det ändrades.
+fn drag_number(document: &mut Document, id: &str, pixels: f64) -> bool {
+    let Some(Kind::NumberField {
+        value,
+        step,
+        min,
+        max,
+        editing,
+    }) = document.find_mut(id).map(|n| &mut n.kind)
+    else {
+        return false;
+    };
+    let new = (*value + pixels * *step).clamp(*min, *max);
+    if (new - *value).abs() <= f64::EPSILON {
+        return false;
+    }
+    *value = new;
+    // Dragningen vinner över en påbörjad inskrivning.
+    *editing = None;
+    true
+}
+
+/// Flyttar en avdelare `pixels` längs sin axel.
+fn drag_divider(document: &mut Document, id: &str, pixels: f32) -> bool {
+    let Some(Kind::Divider {
+        value, min, max, ..
+    }) = document.find_mut(id).map(|n| &mut n.kind)
+    else {
+        return false;
+    };
+    let new = (*value + pixels).clamp(*min, *max);
+    if (new - *value).abs() <= f32::EPSILON {
+        return false;
+    }
+    *value = new;
+    true
+}
+
 /// Kan noden träffas av pekaren?
 ///
 /// Allt interaktivt kan. En panel kan bara om den har en bakgrund – utan
@@ -523,7 +800,10 @@ fn hittable(node: &Node) -> bool {
         | Kind::Slider { .. }
         | Kind::TextInput { .. }
         | Kind::TextArea { .. }
-        | Kind::Dropdown { .. } => true,
+        | Kind::Dropdown { .. }
+        | Kind::Collapsible { .. }
+        | Kind::NumberField { .. }
+        | Kind::Divider { .. } => true,
         _ => node.style.background.is_some(),
     }
 }
@@ -548,7 +828,15 @@ fn visit(
     // Klippet kommer ur layouten, samma värde ritaren använder. Det är
     // avsiktligt: det man ser är det man kan klicka. En rad som rullat ur
     // sin lista ritas inte, och ska då inte heller kunna träffas.
-    let visible_rect = rect.intersect(placed.clip);
+    // En hopfällbar nods träffyta är rubrikraden, som layouten lade i
+    // `inner`. Hade hela den utfällda ytan räknats skulle ett klick i
+    // tomrummet under innehållet fälla ihop avsnittet igen.
+    let own = if matches!(node.kind, Kind::Collapsible { .. }) {
+        placed.inner
+    } else {
+        rect
+    };
+    let visible_rect = own.intersect(placed.clip);
 
     if hittable(node) && visible_rect.contains(point) {
         let deeper = best

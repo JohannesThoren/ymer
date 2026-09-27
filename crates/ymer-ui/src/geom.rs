@@ -31,6 +31,13 @@ impl std::ops::Add for Vec2 {
     }
 }
 
+impl std::ops::Mul<f32> for Vec2 {
+    type Output = Vec2;
+    fn mul(self, factor: f32) -> Vec2 {
+        Vec2::new(self.x * factor, self.y * factor)
+    }
+}
+
 impl std::ops::Sub for Vec2 {
     type Output = Vec2;
     fn sub(self, rhs: Vec2) -> Vec2 {

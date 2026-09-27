@@ -134,6 +134,29 @@ fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
         // En bild eller stapel har ingen inneboende storlek här; den
         // styrs av `width`/`height`. Att gissa på bildens pixelmått hade
         // krävt att layouten kände till texturerna.
+        // Rubriken: pil, mellanrum, etikett.
+        Kind::Collapsible { label, .. } => {
+            let size = text.measure(label, style.font_size);
+            Vec2::new(crate::metrics::ARROW + crate::metrics::GAP + size.x, size.y)
+        }
+
+        // Sifferfältet mäts efter en rimlig bredd, inte efter talet just
+        // nu – annars hoppar hela inspektorn i bredd när man drar.
+        Kind::NumberField { .. } => Vec2::new(
+            crate::metrics::NUMBER_FIELD,
+            text.measure("M", style.font_size).y,
+        ),
+
+        // Avdelaren är tunn på sin egen axel och tar all plats på den
+        // andra; det senare sköter `Size::Fill` i stilen.
+        Kind::Divider { vertical, .. } => {
+            if *vertical {
+                Vec2::new(crate::metrics::DIVIDER, 0.0)
+            } else {
+                Vec2::new(0.0, crate::metrics::DIVIDER)
+            }
+        }
+
         Kind::Image { .. } | Kind::Bar { .. } | Kind::Spacer => Vec2::ZERO,
         Kind::Panel | Kind::Scroll { .. } => Vec2::ZERO,
     };
@@ -154,11 +177,16 @@ fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
         (available.y - padding.vertical()).max(0.0),
     );
     let mut children = Vec2::ZERO;
-    let visible: Vec<&Node> = node
-        .children
-        .iter()
-        .filter(|child| child.style.visible)
-        .collect();
+    let visible: Vec<&Node> = if collapsed(node) {
+        // Ett hopfällt avsnitt har inget innehåll att mäta. Att i stället
+        // mäta och sedan dölja hade kostat lika mycket som att visa det.
+        Vec::new()
+    } else {
+        node.children
+            .iter()
+            .filter(|child| child.style.visible)
+            .collect()
+    };
 
     for (index, child) in visible.iter().enumerate() {
         let size = measure(child, text, inner_available);
@@ -181,18 +209,113 @@ fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
                 children.x = children.x.max(size.x);
                 children.y = children.y.max(size.y);
             }
+            // Radbrytningen räknas i ett eget svep nedan: den behöver se
+            // alla mått innan den vet var raderna bryts.
+            Layout::Wrap => {}
         }
     }
 
-    let natural = Vec2::new(
-        content.x.max(children.x) + padding.horizontal(),
-        content.y.max(children.y) + padding.vertical(),
-    );
+    if style.layout == Layout::Wrap {
+        // Var raderna bryts beror på nodens *egen* bredd, inte på hur
+        // mycket föräldern råkar erbjuda. För en Auto-bred nod är de
+        // samma sak, men en panel med fast bredd i ett brett fönster
+        // hade annars mätts som en enda lång rad och placerats som fem.
+        let wrap_width = match style.width {
+            Size::Fixed(width) => (width - padding.horizontal()).max(0.0),
+            Size::Fraction(f) => (available.x * f - padding.horizontal()).max(0.0),
+            Size::Auto | Size::Fill => inner_available.x,
+        };
+        let child_space = Vec2::new(wrap_width, inner_available.y);
+        let sizes: Vec<Vec2> = visible
+            .iter()
+            .map(|child| measure(child, text, child_space))
+            .collect();
+        children = wrap_size(&sizes, wrap_width, style.gap);
+    }
+
+    // Normalt delar innehållet och barnen samma ruta – en knapps text
+    // ligger *i* knappen. Rubriken är undantaget: den ligger ovanför sitt
+    // innehåll, så höjderna läggs ihop.
+    let natural = if matches!(node.kind, Kind::Collapsible { .. }) {
+        let body = if children.y > 0.0 {
+            style.gap + children.y
+        } else {
+            0.0
+        };
+        Vec2::new(
+            content.x.max(children.x) + padding.horizontal(),
+            content.y + body + padding.vertical(),
+        )
+    } else {
+        Vec2::new(
+            content.x.max(children.x) + padding.horizontal(),
+            content.y.max(children.y) + padding.vertical(),
+        )
+    };
 
     Vec2::new(
         resolve(style.width, natural.x, available.x),
         resolve(style.height, natural.y, available.y),
     )
+}
+
+/// Var raderna bryts: en lista av (första index, antal, radhöjd).
+///
+/// Ett barn som är bredare än hela ytan får en egen rad i stället för att
+/// tvinga fram en tom. Annars hade en enda för bred knapp lämnat ett hål.
+fn wrap_lines(sizes: &[Vec2], available: f32, gap: f32) -> Vec<(usize, usize, f32)> {
+    let mut lines = Vec::new();
+    let mut start = 0usize;
+    let mut width = 0.0f32;
+    let mut height = 0.0f32;
+
+    for (index, size) in sizes.iter().enumerate() {
+        let extra = if index == start { 0.0 } else { gap };
+        if index > start && width + extra + size.x > available {
+            lines.push((start, index - start, height));
+            start = index;
+            width = size.x;
+            height = size.y;
+        } else {
+            width += extra + size.x;
+            height = height.max(size.y);
+        }
+    }
+    if start < sizes.len() {
+        lines.push((start, sizes.len() - start, height));
+    }
+    lines
+}
+
+/// Måtten en radbruten grupp tar.
+fn wrap_size(sizes: &[Vec2], available: f32, gap: f32) -> Vec2 {
+    let lines = wrap_lines(sizes, available, gap);
+    let mut total = Vec2::ZERO;
+    for (line, (start, count, height)) in lines.iter().enumerate() {
+        let mut width = 0.0;
+        for (i, size) in sizes[*start..*start + *count].iter().enumerate() {
+            if i > 0 {
+                width += gap;
+            }
+            width += size.x;
+        }
+        total.x = total.x.max(width);
+        total.y += height;
+        if line + 1 < lines.len() {
+            total.y += gap;
+        }
+    }
+    total
+}
+
+/// Ett hopfällt avsnitt: barnen finns i trädet men inte i layouten.
+fn collapsed(node: &Node) -> bool {
+    matches!(node.kind, Kind::Collapsible { open: false, .. })
+}
+
+/// Rubrikens höjd i en hopfällbar nod.
+fn header_height(node: &Node, text: &dyn TextMeasure) -> f32 {
+    text.measure("M", node.style.font_size).y
 }
 
 fn resolve(size: Size, natural: f32, available: f32) -> f32 {
@@ -304,11 +427,31 @@ fn place(node: &Node, slot: Rect, text: &dyn TextMeasure, from: Inherited, out: 
         clip
     };
 
-    let visible: Vec<&Node> = node
-        .children
-        .iter()
-        .filter(|child| child.style.visible)
-        .collect();
+    let visible: Vec<&Node> = if collapsed(node) {
+        Vec::new()
+    } else {
+        node.children
+            .iter()
+            .filter(|child| child.style.visible)
+            .collect()
+    };
+
+    // Rubriken tar sin rad överst; `inner` blir innehållets yta under
+    // den. Nodens `inner` i listan behåller rubriken, för det är den som
+    // ska kunna klickas – inte hela det utfällda avsnittet.
+    let inner = if matches!(node.kind, Kind::Collapsible { .. }) {
+        let head = header_height(node, text);
+        out.nodes[index].inner = Rect::new(inner.x, inner.y, inner.width, head);
+        Rect::new(
+            inner.x,
+            inner.y + head + style.gap,
+            inner.width,
+            (inner.height - head - style.gap).max(0.0),
+        )
+    } else {
+        inner
+    };
+
     if visible.is_empty() {
         return;
     }
@@ -342,6 +485,32 @@ fn place(node: &Node, slot: Rect, text: &dyn TextMeasure, from: Inherited, out: 
         return;
     }
 
+    if style.layout == Layout::Wrap {
+        let sizes: Vec<Vec2> = visible
+            .iter()
+            .map(|child| measure(child, text, inner.size()))
+            .collect();
+        let mut y = inner.y;
+        for (start, count, height) in wrap_lines(&sizes, inner.width, style.gap) {
+            let mut x = inner.x;
+            for offset in 0..count {
+                let child = visible[start + offset];
+                let size = sizes[start + offset];
+                place(
+                    child,
+                    Rect::new(x, y, size.x, size.y),
+                    text,
+                    from.child(index, clip),
+                    out,
+                );
+                x += size.x + style.gap;
+            }
+            y += height + style.gap;
+        }
+        out.nodes[index].content = Vec2::new(inner.width, (y - style.gap - inner.y).max(0.0));
+        return;
+    }
+
     match style.layout {
         Layout::Stack => {
             // Varje barn placeras för sig, mot sitt eget ankare.
@@ -361,7 +530,8 @@ fn place(node: &Node, slot: Rect, text: &dyn TextMeasure, from: Inherited, out: 
                 );
             }
         }
-        Layout::Row | Layout::Column => {
+        // Wrap togs om hand ovan; den kan inte nå hit.
+        Layout::Row | Layout::Column | Layout::Wrap => {
             let row = style.layout == Layout::Row;
             let main_available = if row { inner.width } else { inner.height };
 

@@ -18,6 +18,11 @@ pub enum Layout {
     /// Ovanpå varandra, var och en placerad med sin egen `anchor`.
     /// Det här är läget för HUD:ar: barnen hänger i hörn och kanter.
     Stack,
+    /// Bredvid varandra, med radbrytning när bredden tar slut.
+    ///
+    /// För rader av olika breda knappar som inte vet hur många de är –
+    /// en `Row` hade tryckt ihop dem eller runnit ut ur panelen.
+    Wrap,
 }
 
 /// Hur stor en nod vill vara längs en axel.
@@ -148,6 +153,13 @@ impl Style {
     pub fn row() -> Self {
         Self {
             layout: Layout::Row,
+            ..Default::default()
+        }
+    }
+
+    pub fn wrap() -> Self {
+        Self {
+            layout: Layout::Wrap,
             ..Default::default()
         }
     }

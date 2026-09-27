@@ -67,6 +67,41 @@ pub enum Kind {
         text: String,
         rows: u32,
     },
+    /// En rubrik som fäller ut sitt innehåll.
+    ///
+    /// Stängd tar barnen ingen plats alls – de mäts inte, placeras inte
+    /// och ritas inte. Bara rubriken kan klickas, inte hela ytan: annars
+    /// hade ett klick i ett utfällt avsnitt fällt ihop det igen.
+    Collapsible {
+        label: String,
+        open: bool,
+    },
+    /// Ett tal man drar i, eller klickar och skriver i.
+    ///
+    /// Inspektorn är full av dem, och de två sätten att ändra ett tal
+    /// hör ihop: dra för att känna sig fram, skriv för att träffa exakt.
+    NumberField {
+        value: f64,
+        /// Hur mycket en pixels dragning ändrar värdet.
+        step: f64,
+        min: f64,
+        max: f64,
+        /// Texten medan någon skriver i fältet. Sparas inte till fil – ett
+        /// halvskrivet tal är inte ett värde.
+        #[serde(skip)]
+        editing: Option<String>,
+    },
+    /// En dragbar avdelare mellan två paneler.
+    ///
+    /// Värdet är måttet den styr, i pixlar; den som bygger dokumentet
+    /// läser det och ger grannen storleken.
+    Divider {
+        /// Sant för en lodrät list mellan vänster och höger.
+        vertical: bool,
+        value: f32,
+        min: f32,
+        max: f32,
+    },
     /// Ett fönster in i ett större innehåll.
     ///
     /// Förskjutningen bor i noden, som alla andra värden: en editor som
@@ -92,7 +127,9 @@ impl Kind {
             | Kind::Button { text }
             | Kind::TextInput { text, .. }
             | Kind::TextArea { text, .. } => Some(text),
-            Kind::Checkbox { label, .. } | Kind::Radio { label, .. } => Some(label),
+            Kind::Checkbox { label, .. }
+            | Kind::Radio { label, .. }
+            | Kind::Collapsible { label, .. } => Some(label),
             Kind::Dropdown {
                 options, selected, ..
             } => selected.and_then(|i| options.get(i)).map(String::as_str),
@@ -107,6 +144,12 @@ impl Kind {
             | Kind::TextInput { text, .. }
             | Kind::TextArea { text, .. } => {
                 *text = new.into();
+                true
+            }
+            Kind::Checkbox { label, .. }
+            | Kind::Radio { label, .. }
+            | Kind::Collapsible { label, .. } => {
+                *label = new.into();
                 true
             }
             _ => false,
@@ -208,6 +251,61 @@ impl Node {
         .with_id(id)
     }
 
+    /// En hopfällbar rubrik. Barnen är innehållet.
+    pub fn collapsible(id: impl Into<String>, label: impl Into<String>, open: bool) -> Self {
+        Self::new(Kind::Collapsible {
+            label: label.into(),
+            open,
+        })
+        .with_id(id)
+    }
+
+    /// Ett sifferfält. `step` är hur mycket en pixels dragning ändrar det.
+    pub fn number(id: impl Into<String>, value: f64, step: f64) -> Self {
+        Self::new(Kind::NumberField {
+            value,
+            step,
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
+            editing: None,
+        })
+        .with_id(id)
+    }
+
+    /// Ett sifferfält med ett spann.
+    pub fn number_in(id: impl Into<String>, value: f64, step: f64, min: f64, max: f64) -> Self {
+        Self::new(Kind::NumberField {
+            value: value.clamp(min, max),
+            step,
+            min,
+            max,
+            editing: None,
+        })
+        .with_id(id)
+    }
+
+    /// En lodrät avdelare: dras i sidled och styr en bredd.
+    pub fn divider(id: impl Into<String>, value: f32, min: f32, max: f32) -> Self {
+        Self::new(Kind::Divider {
+            vertical: true,
+            value: value.clamp(min, max),
+            min,
+            max,
+        })
+        .with_id(id)
+    }
+
+    /// En vågrät avdelare: dras uppåt och nedåt och styr en höjd.
+    pub fn divider_horizontal(id: impl Into<String>, value: f32, min: f32, max: f32) -> Self {
+        Self::new(Kind::Divider {
+            vertical: false,
+            value: value.clamp(min, max),
+            min,
+            max,
+        })
+        .with_id(id)
+    }
+
     /// En rullbar yta. Den *måste* få en storlek – dess egenstorlek är
     /// noll, eftersom en yta som mäter sig efter sitt innehåll aldrig
     /// behöver rullas.
@@ -302,6 +400,12 @@ impl Node {
             Kind::Slider { value, .. } => Some(NodeValue::Number(*value)),
             Kind::Bar { value, .. } => Some(NodeValue::Number(*value)),
             Kind::Dropdown { selected, .. } => Some(NodeValue::Index(*selected)),
+            // Sifferfältets *värde* är talet, inte det halvskrivna
+            // fältinnehållet. Ett skript som läser medan någon skriver
+            // ska se det senast giltiga talet.
+            Kind::NumberField { value, .. } => Some(NodeValue::Number(*value as f32)),
+            Kind::Divider { value, .. } => Some(NodeValue::Number(*value)),
+            Kind::Collapsible { open, .. } => Some(NodeValue::Bool(*open)),
             // Etiketter och knappar har text men inget *värde* – de är
             // utdata, inte inmatning.
             _ => None,
@@ -410,6 +514,32 @@ impl Document {
                 *slot = new.clamp(min.min(*max), max.max(*min));
                 true
             }
+            Some(Kind::NumberField {
+                value: slot,
+                step,
+                min,
+                max,
+                editing,
+            }) => {
+                let mut new = value as f64;
+                if *step > 0.0 {
+                    new = (new / *step).round() * *step;
+                }
+                *slot = new.clamp(*min, *max);
+                // En skrivning utifrån vinner över det som skrivs för
+                // hand; annars hade fältet visat gammal text.
+                *editing = None;
+                true
+            }
+            Some(Kind::Divider {
+                value: slot,
+                min,
+                max,
+                ..
+            }) => {
+                *slot = value.clamp(*min, *max);
+                true
+            }
             // Mätaren är normaliserad, inte ett spann.
             Some(Kind::Bar { value: slot, .. }) => {
                 *slot = value.clamp(0.0, 1.0);
@@ -424,6 +554,10 @@ impl Document {
     /// En radioknapp som bockas i släcker resten av sin grupp, precis som
     /// ett klick hade gjort – annars kunde ett skript lämna två valda.
     pub fn set_checked(&mut self, id: &str, value: bool) -> bool {
+        if let Some(Kind::Collapsible { open, .. }) = self.find_mut(id).map(|node| &mut node.kind) {
+            *open = value;
+            return true;
+        }
         let group = match self.find_mut(id).map(|node| &mut node.kind) {
             Some(Kind::Checkbox { checked, .. }) => {
                 *checked = value;

@@ -16,3 +16,8 @@ pub const MIN_FIELD: f32 = 80.0;
 pub const CARET: f32 = 1.0;
 /// Rullningslistens bredd.
 pub const SCROLLBAR: f32 = 6.0;
+/// Sifferfältets vilobredd. Bred nog för ett tal med tecken och två
+/// decimaler, så att en rad fält inte hoppar i bredd när man drar.
+pub const NUMBER_FIELD: f32 = 62.0;
+/// Avdelarens tjocklek.
+pub const DIVIDER: f32 = 5.0;

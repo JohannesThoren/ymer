@@ -180,7 +180,13 @@ fn emit(
 
     let interactive = matches!(
         node.kind,
-        Kind::Button { .. } | Kind::Checkbox { .. } | Kind::Radio { .. } | Kind::Dropdown { .. }
+        Kind::Button { .. }
+            | Kind::Checkbox { .. }
+            | Kind::Radio { .. }
+            | Kind::Dropdown { .. }
+            | Kind::Collapsible { .. }
+            | Kind::NumberField { .. }
+            | Kind::Divider { .. }
     );
     let hovered = interactive && state.hovered.as_deref() == Some(node.id.as_str());
     let held = hovered && state.pointer_down;
@@ -493,11 +499,155 @@ fn emit(
             }
         }
 
+        Kind::Collapsible { label, open } => {
+            // Pilen: en liten platta som flyttar sig i stället för att
+            // vrida sig. Att rita en triangel hade krävt ett nytt
+            // ritkommando, och listan ska vara smal.
+            let head = placed.inner;
+            let size = metrics::ARROW * 0.5;
+            let arrow = if *open {
+                Rect::new(
+                    head.x,
+                    head.y + (head.height - size) * 0.5 + size * 0.4,
+                    metrics::ARROW,
+                    size * 0.6,
+                )
+            } else {
+                Rect::new(
+                    head.x + size * 0.4,
+                    head.y + (head.height - metrics::ARROW) * 0.5,
+                    size * 0.6,
+                    metrics::ARROW,
+                )
+            };
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: arrow,
+                    color: node.style.color.with_alpha(0.75),
+                    radius: 1.0,
+                },
+            );
+            list.push(
+                clip,
+                Command::Text {
+                    rect: Rect::new(
+                        head.x + metrics::ARROW + metrics::GAP,
+                        head.y,
+                        (head.width - metrics::ARROW - metrics::GAP).max(0.0),
+                        head.height,
+                    ),
+                    text: label.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
+        }
+
+        Kind::NumberField {
+            value,
+            step,
+            editing,
+            ..
+        } => {
+            let inner = rect.shrink(node.style.padding);
+            let focused = state.focused.as_deref() == Some(node.id.as_str());
+            let shown = match editing {
+                Some(draft) => draft.clone(),
+                None => format_number(*value, *step),
+            };
+            list.push(
+                clip,
+                Command::Text {
+                    rect: inner,
+                    text: shown.clone(),
+                    size: node.style.font_size,
+                    color: node.style.color,
+                },
+            );
+            if focused && editing.is_some() {
+                caret(
+                    list,
+                    clip,
+                    Field {
+                        inner,
+                        size: node.style.font_size,
+                        color: node.style.color,
+                        text,
+                    },
+                    &shown,
+                    state.caret,
+                );
+            }
+        }
+
+        Kind::Divider { .. } => {
+            // Ett grepp mitt på listen, så att den syns som dragbar. Det
+            // är hela skillnaden mot en vanlig linje.
+            let along = if rect.width < rect.height {
+                Rect::new(
+                    rect.x,
+                    rect.center().y - metrics::HANDLE,
+                    rect.width,
+                    metrics::HANDLE * 2.0,
+                )
+            } else {
+                Rect::new(
+                    rect.center().x - metrics::HANDLE,
+                    rect.y,
+                    metrics::HANDLE * 2.0,
+                    rect.height,
+                )
+            };
+            list.push(
+                clip,
+                Command::Rect {
+                    rect: along,
+                    color: if hovered || held {
+                        node.style.color.with_alpha(0.8)
+                    } else {
+                        node.style.color.with_alpha(0.3)
+                    },
+                    radius: 2.0,
+                },
+            );
+        }
+
         Kind::Panel | Kind::Spacer => {}
+    }
+
+    // Ett hopfällt avsnitt har inga barn i layouten, så de får inte
+    // heller räknas bort här: `index` skulle glida ur fas med trädet.
+    if matches!(node.kind, Kind::Collapsible { open: false, .. }) {
+        return;
     }
 
     for child in &node.children {
         emit(child, laid_out, state, text, index, list);
+    }
+}
+
+/// Talet som text, med så många decimaler steget motiverar.
+///
+/// Ett steg på 1 ger heltal. Att alltid visa decimaler hade gjort en
+/// kolumn med heltal oläslig, och att aldrig göra det hade dolt att
+/// 0.05-steg rör sig.
+pub(crate) fn format_number(value: f64, step: f64) -> String {
+    let decimals = if step >= 1.0 {
+        0
+    } else if step >= 0.1 {
+        1
+    } else if step >= 0.01 {
+        2
+    } else {
+        3
+    };
+    let text = format!("{value:.decimals$}");
+    // -0 är ett giltigt flyttal men ser ut som ett fel i ett fält.
+    if text.starts_with("-") && text[1..].chars().all(|c| c == '0' || c == '.') {
+        text[1..].to_string()
+    } else {
+        text
     }
 }
 
