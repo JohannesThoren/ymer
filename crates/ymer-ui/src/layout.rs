@@ -243,23 +243,42 @@ pub fn layout(document: &Document, viewport: Rect, text: &dyn TextMeasure) -> La
         root,
         Rect::from_pos_size(position, size),
         text,
-        None,
-        0,
-        viewport,
+        Inherited {
+            parent: None,
+            depth: 0,
+            clip: viewport,
+        },
         &mut out,
     );
     out
 }
 
-fn place(
-    node: &Node,
-    slot: Rect,
-    text: &dyn TextMeasure,
+/// Vad en nod ärver av sin förälder.
+#[derive(Debug, Clone, Copy)]
+struct Inherited {
+    /// Index i `LaidOut::nodes`, för att kunna gå uppåt i trädet.
     parent: Option<usize>,
     depth: usize,
     clip: Rect,
-    out: &mut LaidOut,
-) {
+}
+
+impl Inherited {
+    /// Kontexten ett barn ärver av den här noden.
+    fn child(self, index: usize, clip: Rect) -> Self {
+        Self {
+            parent: Some(index),
+            depth: self.depth + 1,
+            clip,
+        }
+    }
+}
+
+fn place(node: &Node, slot: Rect, text: &dyn TextMeasure, from: Inherited, out: &mut LaidOut) {
+    let Inherited {
+        parent,
+        depth,
+        clip,
+    } = from;
     if !node.style.visible {
         return;
     }
@@ -313,7 +332,7 @@ fn place(
                 width,
                 size.y,
             );
-            place(child, rect, text, Some(index), depth + 1, clip, out);
+            place(child, rect, text, from.child(index, clip), out);
             cursor += size.y;
             if i + 1 < visible.len() {
                 cursor += style.gap;
@@ -337,9 +356,7 @@ fn place(
                     child,
                     Rect::from_pos_size(position, size),
                     text,
-                    Some(index),
-                    depth + 1,
-                    clip,
+                    from.child(index, clip),
                     out,
                 );
             }
@@ -433,7 +450,7 @@ fn place(
                     Rect::new(inner.x + cross_offset, inner.y + cursor, cross_size, main)
                 };
 
-                place(child, rect, text, Some(index), depth + 1, clip, out);
+                place(child, rect, text, from.child(index, clip), out);
                 cursor += main + between;
             }
             out.nodes[index].content = if row {

@@ -5,7 +5,7 @@
 //! till sitt eget API. Det är det som gör att `ymer-ui` kan användas
 //! utanför Ymer utan att något behöver ändras.
 
-use crate::geom::{Color, Rect, Vec2};
+use crate::geom::{Color, Rect};
 use crate::layout::LaidOut;
 use crate::metrics;
 use crate::node::{Document, Kind, Node};
@@ -373,12 +373,14 @@ fn emit(
                 caret(
                     list,
                     clip,
-                    inner,
+                    Field {
+                        inner,
+                        size: node.style.font_size,
+                        color: node.style.color,
+                        text,
+                    },
                     value,
                     state.caret,
-                    node.style.font_size,
-                    text,
-                    node.style.color,
                 );
             }
         }
@@ -500,28 +502,32 @@ fn emit(
 }
 
 /// Textmarkören efter `caret` tecken.
-fn caret(
-    list: &mut DrawList,
-    clip: Rect,
-    inner: Rect,
-    value: &str,
-    caret: usize,
-    size: f32,
-    text: &dyn TextMeasure,
-    color: Color,
-) {
+fn caret(list: &mut DrawList, clip: Rect, field: Field, value: &str, caret: usize) {
     let before: String = value.chars().take(caret).collect();
-    let offset = text.measure(&before, size).x;
-    let height = text.measure("M", size).y;
+    let offset = field.text.measure(&before, field.size).x;
+    let height = field.text.measure("M", field.size).y;
     list.push(
         clip,
         Command::Rect {
-            rect: Rect::new(inner.x + offset, inner.y, metrics::CARET, height),
-            color,
+            rect: Rect::new(
+                field.inner.x + offset,
+                field.inner.y,
+                metrics::CARET,
+                height,
+            ),
+            color: field.color,
             radius: 0.0,
         },
     );
-    let _ = Vec2::ZERO;
+}
+
+/// Måtten ett textfält ritas med.
+#[derive(Clone, Copy)]
+struct Field<'a> {
+    inner: Rect,
+    size: f32,
+    color: Color,
+    text: &'a dyn TextMeasure,
 }
 
 /// Räknar bort ett delträd ur `index` utan att rita det.

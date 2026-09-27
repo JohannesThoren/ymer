@@ -21,6 +21,15 @@ use ymer_core::{Mat4, MeshId, TextureId, Vec3};
 use ymer_render::{Assets, DrawItem, Renderer};
 use ymer_ui::{Command, DrawList, FontAtlas};
 
+/// En textrad som ska bli glyfkvadrater.
+#[derive(Debug, Clone, Copy)]
+struct TextRun {
+    rect: ymer_ui::Rect,
+    size: f32,
+    color: ymer_ui::Color,
+    clip: ymer_ui::Rect,
+}
+
 /// Översätter ritlistor och äger atlasens textur.
 pub struct UiBackend {
     atlas: FontAtlas,
@@ -130,7 +139,17 @@ impl UiBackend {
                     text,
                     size,
                     color,
-                } => self.glyphs(&mut items, *rect, text, *size, *color, texture, clip),
+                } => self.glyphs(
+                    &mut items,
+                    text,
+                    TextRun {
+                        rect: *rect,
+                        size: *size,
+                        color: *color,
+                        clip,
+                    },
+                    texture,
+                ),
             }
         }
 
@@ -148,16 +167,13 @@ impl UiBackend {
         ]
     }
 
-    fn glyphs(
-        &mut self,
-        items: &mut Vec<DrawItem>,
-        rect: ymer_ui::Rect,
-        text: &str,
-        size: f32,
-        color: ymer_ui::Color,
-        texture: TextureId,
-        clip: ymer_ui::Rect,
-    ) {
+    fn glyphs(&mut self, items: &mut Vec<DrawItem>, text: &str, run: TextRun, texture: TextureId) {
+        let TextRun {
+            rect,
+            size,
+            color,
+            clip,
+        } = run;
         let line_height = {
             use ymer_ui::TextMeasure;
             self.atlas.measure("M", size).y
