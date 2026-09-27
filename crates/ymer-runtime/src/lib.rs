@@ -81,6 +81,7 @@ impl App {
         let mut world = World::new();
         world.insert_resource(Time::new());
         world.insert_resource(Input::default());
+        world.insert_resource(ymer_core::Screen::default());
         world.insert_resource(ymer_core::ConsoleLog::default());
         world.insert_resource(ymer_core::Gravity::default());
 
@@ -149,7 +150,7 @@ impl App {
     /// Medan UI:t är uppe sätts [`UiFocus`] i världen. Ett spel som tolkar
     /// musklick ska läsa den först, annars går ett klick på en knapp
     /// *också* vidare till spelvärlden.
-    pub fn with_ui(mut self, ui: impl FnMut(&egui::Context, &mut World) + 'static) -> Self {
+    pub fn with_ui(mut self, ui: impl FnMut(&mut egui::Ui, &mut World) + 'static) -> Self {
         self.ui = Some(Box::new(ui));
         self
     }
@@ -343,6 +344,11 @@ impl ApplicationHandler for App {
                 self.world.resource_mut::<Input>().end_frame();
 
                 if let Some(renderer) = &mut self.renderer {
+                    let (width, height) = renderer.size();
+                    self.world.insert_resource(ymer_core::Screen {
+                        size: Vec2::new(width as f32, height as f32),
+                    });
+
                     let list =
                         build_render_list(&mut self.world, renderer.aspect_ratio(), &self.assets);
 

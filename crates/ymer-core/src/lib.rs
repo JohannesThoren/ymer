@@ -76,6 +76,30 @@ impl Default for Time {
 
 // -------------------------------------------------------------- input
 
+/// Renderytans storlek i pixlar.
+///
+/// Musens läge kommer i samma pixlar, så allt som går från skärm till
+/// värld – plock, siktlinjer, markörer – behöver den här. Den sätts av
+/// `App` varje frame och följer fönsterstorleken.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct Screen {
+    pub size: Vec2,
+}
+
+impl Default for Screen {
+    fn default() -> Self {
+        Self {
+            size: Vec2::new(1.0, 1.0),
+        }
+    }
+}
+
+impl Screen {
+    pub fn aspect(&self) -> f32 {
+        self.size.x / self.size.y.max(1.0)
+    }
+}
+
 /// Tangent- och musläge för den här framen.
 ///
 /// Tangenter namnges som i webbens `KeyboardEvent.code` – "KeyW", "Space",
@@ -89,6 +113,8 @@ pub struct Input {
     pub mouse_position: Vec2,
     pub mouse_delta: Vec2,
     mouse_down: BTreeSet<String>,
+    mouse_pressed: BTreeSet<String>,
+    mouse_released: BTreeSet<String>,
 }
 
 impl Input {
@@ -110,6 +136,19 @@ impl Input {
         self.mouse_down.contains(button)
     }
 
+    /// Trycktes musknappen ned den här framen?
+    ///
+    /// Tangenter har haft flankdetektering sedan början, musknappar inte.
+    /// Utan den här svarar `mouse_is_down` ja varje frame knappen hålls,
+    /// och ett spel som bygger på klick bygger om och om igen.
+    pub fn mouse_just_pressed(&self, button: &str) -> bool {
+        self.mouse_pressed.contains(button)
+    }
+
+    pub fn mouse_just_released(&self, button: &str) -> bool {
+        self.mouse_released.contains(button)
+    }
+
     pub fn press(&mut self, key: impl Into<String>) {
         let key = key.into();
         // Autorepeat ska inte ge nya "just pressed".
@@ -126,11 +165,16 @@ impl Input {
     }
 
     pub fn press_mouse(&mut self, button: impl Into<String>) {
-        self.mouse_down.insert(button.into());
+        let button = button.into();
+        if self.mouse_down.insert(button.clone()) {
+            self.mouse_pressed.insert(button);
+        }
     }
 
     pub fn release_mouse(&mut self, button: &str) {
-        self.mouse_down.remove(button);
+        if self.mouse_down.remove(button) {
+            self.mouse_released.insert(button.to_string());
+        }
     }
 
     pub fn set_mouse_position(&mut self, position: Vec2) {
@@ -142,6 +186,8 @@ impl Input {
     pub fn end_frame(&mut self) {
         self.pressed.clear();
         self.released.clear();
+        self.mouse_pressed.clear();
+        self.mouse_released.clear();
         self.mouse_delta = Vec2::ZERO;
     }
 }

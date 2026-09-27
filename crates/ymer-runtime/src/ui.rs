@@ -6,9 +6,9 @@
 //!
 //! ```ignore
 //! App::new(config)
-//!     .with_ui(|ctx, world| {
+//!     .with_ui(|ui, world| {
 //!         let guld = world.resource::<Kassa>().guld;
-//!         egui::Panel::top("hud").show_ctx(ctx, |ui| ui.label(format!("{guld} guld")));
+//!         egui::Panel::top("hud").show(ui, |ui| ui.label(format!("{guld} guld")));
 //!     })
 //!     .run()
 //! ```
@@ -42,7 +42,10 @@ impl UiFocus {
     }
 }
 
-pub type UiFn = Box<dyn FnMut(&egui::Context, &mut World)>;
+/// Stängningen får ett `Ui` som täcker hela fönstret. Paneler visas i
+/// det (`Panel::top(..).show(ui, ..)`); fönster och popup:er vill ha en
+/// `Context` i stället, och den når man med `ui.ctx()`.
+pub type UiFn = Box<dyn FnMut(&mut egui::Ui, &mut World)>;
 
 pub struct GameUi {
     overlay: EguiOverlay,
@@ -95,10 +98,7 @@ impl GameUi {
 
         // run_ui lånar världen i stängningen, så den kan inte också nås
         // härifrån – därför läses fokus ut efteråt, ur kontexten.
-        let output = self.ctx.run_ui(raw_input, |egui_ui| {
-            let ctx = egui_ui.ctx().clone();
-            ui(&ctx, world);
-        });
+        let output = self.ctx.run_ui(raw_input, |egui_ui| ui(egui_ui, world));
 
         self.egui_winit
             .handle_platform_output(window, output.platform_output.clone());
