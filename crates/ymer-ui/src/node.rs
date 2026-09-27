@@ -101,6 +101,10 @@ pub enum Kind {
         value: f32,
         min: f32,
         max: f32,
+        /// Värdet mäts från andra hållet: dras listen åt höger *krymper*
+        /// det. Så sitter en panel som är dockad i höger- eller
+        /// nederkanten, och utan flaggan drar man den åt fel håll.
+        from_end: bool,
     },
     /// Ett fönster in i ett större innehåll.
     ///
@@ -291,8 +295,17 @@ impl Node {
             value: value.clamp(min, max),
             min,
             max,
+            from_end: false,
         })
         .with_id(id)
+    }
+
+    /// Samma avdelare, men för en panel som sitter i motsatt kant.
+    pub fn from_end(mut self) -> Self {
+        if let Kind::Divider { from_end, .. } = &mut self.kind {
+            *from_end = true;
+        }
+        self
     }
 
     /// En vågrät avdelare: dras uppåt och nedåt och styr en höjd.
@@ -302,6 +315,7 @@ impl Node {
             value: value.clamp(min, max),
             min,
             max,
+            from_end: false,
         })
         .with_id(id)
     }
@@ -469,6 +483,62 @@ impl Document {
 
     pub fn find(&self, id: &str) -> Option<&Node> {
         self.root.find(id)
+    }
+
+    /// Tar över vy-tillståndet från ett tidigare dokument.
+    ///
+    /// Det här är vad som gör det praktiskt att bygga om hela trädet
+    /// varje frame – som en editor gör, eftersom innehållet beror på vad
+    /// som är markerat. Värdena kommer ur programmets data och byggs om;
+    /// men var en lista var rullad, vilka avsnitt som var utfällda, hur
+    /// brett någon dragit en panel och vad som står halvskrivet i ett
+    /// sifferfält är *inte* programmets data. Det hör till vyn, och utan
+    /// den här överföringen skulle varje frame nollställa det.
+    ///
+    /// Bara id:n som finns i båda träden tas över, så nytt innehåll börjar
+    /// i sitt utgångsläge. Det överförda vinner över det som byggdes: en
+    /// användare som fällt ihop ett avsnitt ska inte se det öppnas igen
+    /// nästa frame.
+    pub fn carry_view_state_from(&mut self, previous: &Document) {
+        let mut carried: Vec<(String, Kind)> = Vec::new();
+        for node in previous.root.walk() {
+            if node.id.is_empty() {
+                continue;
+            }
+            if matches!(
+                node.kind,
+                Kind::Scroll { .. }
+                    | Kind::Collapsible { .. }
+                    | Kind::Divider { .. }
+                    | Kind::NumberField { .. }
+            ) {
+                carried.push((node.id.clone(), node.kind.clone()));
+            }
+        }
+
+        for (id, old) in carried {
+            let Some(node) = self.find_mut(&id) else {
+                continue;
+            };
+            match (&mut node.kind, old) {
+                (Kind::Scroll { offset }, Kind::Scroll { offset: old }) => *offset = old,
+                (Kind::Collapsible { open, .. }, Kind::Collapsible { open: old, .. }) => {
+                    *open = old
+                }
+                (
+                    Kind::Divider {
+                        value, min, max, ..
+                    },
+                    Kind::Divider { value: old, .. },
+                ) => *value = old.clamp(*min, *max),
+                // Bara utkastet, inte talet: värdet kommer ur programmets
+                // data, och ett tal som ändrats där ska synas.
+                (Kind::NumberField { editing, .. }, Kind::NumberField { editing: old, .. }) => {
+                    *editing = old
+                }
+                _ => {}
+            }
+        }
     }
 
     pub fn find_mut(&mut self, id: &str) -> Option<&mut Node> {

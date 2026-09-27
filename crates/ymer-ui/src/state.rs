@@ -183,11 +183,15 @@ impl State {
         input: &Input,
     ) -> Events {
         let pointer = input.pointer;
-        let hit = hit_test(document, laid_out, pointer.position);
+        // Vad pekaren står på, och skilt från det: vad som går att
+        // rapportera. En namnlös panel skymmer spelet utan att kunna
+        // hovras eller klickas.
+        let over = probe(document, laid_out, pointer.position);
+        let hit = over.clone().filter(|id| !id.is_empty());
 
         let mut events = Events {
             hovered: hit.clone(),
-            pointer_over_ui: hit.is_some() || self.open.is_some(),
+            pointer_over_ui: over.is_some() || self.open.is_some(),
             ..Default::default()
         };
 
@@ -423,9 +427,11 @@ impl State {
                 // hade varit omöjligt att träffa exakt.
                 drag_number(document, id, delta.x as f64)
             }
-            Some(Kind::Divider { vertical, .. }) => {
+            Some(Kind::Divider {
+                vertical, from_end, ..
+            }) => {
                 let along = if *vertical { delta.x } else { delta.y };
-                drag_divider(document, id, along)
+                drag_divider(document, id, if *from_end { -along } else { along })
             }
             _ => false,
         }
@@ -694,6 +700,17 @@ fn takes_keyboard(kind: &Kind) -> bool {
 /// Ritordningen är föräldrar före barn, så den sist besökta träffen är
 /// den som ligger överst – samma regel som den som ritar följer.
 pub fn hit_test(document: &Document, laid_out: &LaidOut, point: Vec2) -> Option<String> {
+    probe(document, laid_out, point).filter(|id| !id.is_empty())
+}
+
+/// Som [`hit_test`], men svarar även för noder utan id.
+///
+/// En namnlös panel med bakgrund kan inte rapporteras – det finns inget
+/// att rapportera den som – men den är ogenomskinlig och *tar* pekaren.
+/// Annars går ett klick på en panel rakt igenom till spelet bakom, och
+/// felet märks först när någon klickar i tomrummet i ett gränssnitt och
+/// råkar skjuta.
+fn probe(document: &Document, laid_out: &LaidOut, point: Vec2) -> Option<String> {
     let mut index = 0usize;
     let mut best: Option<(usize, String)> = None;
     visit(&document.root, laid_out, point, &mut index, &mut best);
@@ -790,7 +807,7 @@ fn drag_divider(document: &mut Document, id: &str, pixels: f32) -> bool {
 /// den är den luft, och en helskärmsrot hade annars svalt varje klick i
 /// spelet bakom.
 fn hittable(node: &Node) -> bool {
-    if !node.style.hit_test || node.id.is_empty() {
+    if !node.style.hit_test {
         return false;
     }
     match node.kind {

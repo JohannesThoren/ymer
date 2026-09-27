@@ -161,6 +161,15 @@ impl Edges {
         }
     }
 
+    pub const fn new(left: f32, right: f32, top: f32, bottom: f32) -> Self {
+        Self {
+            left,
+            right,
+            top,
+            bottom,
+        }
+    }
+
     pub const fn symmetric(horizontal: f32, vertical: f32) -> Self {
         Self {
             left: horizontal,

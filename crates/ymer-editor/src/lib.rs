@@ -11,6 +11,7 @@ use ymer_core::{EntityName, Transform};
 use ymer_scene::{Scene, TypeRegistry, clear_scene};
 
 pub mod browser;
+pub mod chrome;
 pub mod export;
 pub mod gizmo;
 pub mod gltf_import;
@@ -72,6 +73,10 @@ pub struct EditorState {
     pub project: Option<ProjectHandle>,
     pub browser: Option<FileBrowser>,
     pending_shortcut: Option<Shortcut>,
+    /// Skript och texturer i projektet, för fälten som pekar ut filer.
+    /// Uppdateras av `refresh_assets`.
+    pub scripts: Vec<String>,
+    pub textures: Vec<String>,
     /// Alla meshnamn assetregistret känner till – inbyggda plus importerade
     /// glTF-meshar. Underhålls av `main.rs`, som är den som äger `Assets`.
     pub available_meshes: Vec<String>,
@@ -89,6 +94,8 @@ impl Default for EditorState {
             project: None,
             browser: None,
             pending_shortcut: None,
+            scripts: Vec::new(),
+            textures: Vec::new(),
             available_meshes: vec![
                 ymer_core::BUILTIN_CUBE.to_string(),
                 ymer_core::BUILTIN_PLANE.to_string(),
@@ -116,6 +123,21 @@ impl EditorState {
         self.pending_shortcut = Some(Shortcut::Duplicate);
     }
 
+    /// Läser om projektets skript- och texturlistor.
+    ///
+    /// Görs en gång per frame i stället för vid varje ändring: en
+    /// katalogläsning är billig, och en lista som är en frame gammal är
+    /// ett mindre problem än en som aldrig uppdateras.
+    pub fn refresh_assets(&mut self) {
+        let Some(handle) = &self.project else {
+            self.scripts.clear();
+            self.textures.clear();
+            return;
+        };
+        self.scripts = inspector::list_scripts(&handle.scripts_dir());
+        self.textures = inspector::list_files(&handle.path("textures"), &handle.root, "png");
+    }
+
     /// Absolut sökväg för en scenfil, relativt projektet om ett är öppet.
     pub fn scene_file(&self) -> std::path::PathBuf {
         match &self.project {
@@ -125,13 +147,13 @@ impl EditorState {
     }
 }
 
-struct Row {
+pub(crate) struct Row {
     entity: Entity,
     name: String,
     depth: usize,
 }
 
-fn collect_hierarchy(world: &World, registry: &TypeRegistry) -> Vec<Row> {
+pub(crate) fn collect_hierarchy(world: &World, registry: &TypeRegistry) -> Vec<Row> {
     let mut rows = Vec::new();
 
     // Resurser lagras som entiteter i bevy_ecs 0.19. Hierarkin ska bara
@@ -531,7 +553,23 @@ pub fn run_ui(
             });
     });
 
-    // --- fas 3: verkställ ----------------------------------------------
+    apply_actions(actions, state, world, registry);
+
+    output
+}
+
+/// Verkställer det användaren bad om.
+///
+/// Skilt från ritandet, för att världen är utlånad som läsbar medan
+/// gränssnittet byggs. Båda gränssnitten – det gamla egui-baserade och
+/// det nya – går genom exakt den här listan, så att en knapp och en
+/// genväg gör samma sak.
+pub(crate) fn apply_actions(
+    actions: Vec<Action>,
+    state: &mut EditorState,
+    world: &mut World,
+    registry: &TypeRegistry,
+) {
     // OpenFile kan lägga till fler kommandon (ladda scenen den pekar på).
     let mut actions_late: Vec<Action> = Vec::new();
     for action in actions.into_iter().chain(std::mem::take(&mut actions_late)) {
@@ -742,8 +780,6 @@ pub fn run_ui(
             }
         }
     }
-
-    output
 }
 
 fn apply_ron(

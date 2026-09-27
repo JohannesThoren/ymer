@@ -591,3 +591,136 @@ fn ett_vanligt_klick_ar_inget_dubbelklick() {
     assert!(events.was_clicked("k0"));
     assert!(!events.was_double_clicked("k0"));
 }
+
+// --------------------------------------- ombyggnad varje frame
+
+#[test]
+fn vy_tillstandet_foljer_med_till_ett_ombyggt_dokument() {
+    // Editorn bygger om hela trädet varje frame, eftersom innehållet
+    // beror på vad som är markerat. Då måste rullning, utfällda avsnitt,
+    // panelbredder och halvskrivna tal följa med – annars nollställs de
+    // 60 gånger i sekunden.
+    fn bygg(talet: f64) -> Document {
+        Document::new(
+            Node::panel().with_id("rot").with_children([
+                Node::scroll("lista")
+                    .with_style(Style::column().with_size(Size::Fill, Size::Fixed(40.0)))
+                    .with_children((0..10).map(|i| {
+                        Node::label(format!("rad {i}"))
+                            .with_id(format!("rad{i}"))
+                            .with_style(Style::default().with_size(Size::Fill, Size::Fixed(20.0)))
+                    })),
+                Node::collapsible("avsnitt", "Transform", true),
+                // Avdelaren behöver en längd; tjockleken har den själv.
+                Node::divider("delare", 120.0, 80.0, 300.0)
+                    .with_style(Style::default().with_size(Size::Auto, Size::Fixed(40.0))),
+                Node::number("x", talet, 0.05),
+            ]),
+        )
+    }
+
+    let mut prov = Prov::new(bygg(1.0));
+
+    // Rulla, fäll ihop, dra avdelaren, börja skriva ett tal.
+    prov.peka(Pointer {
+        position: prov.mitten("lista"),
+        scroll: Vec2::new(0.0, 25.0),
+        ..Default::default()
+    });
+    prov.klicka_rubrik("avsnitt");
+    prov.dra("delare", Vec2::new(30.0, 0.0));
+    prov.klicka("x");
+    prov.skriv("8", &[]);
+
+    let gammalt = prov.document;
+
+    // Bygg om – med ett *nytt* tal ur programmets data.
+    let mut nytt = bygg(4.0);
+    nytt.carry_view_state_from(&gammalt);
+
+    let laid_out = layout(&nytt, viewport(), &metrics());
+    assert_eq!(
+        laid_out.rect("rad0").unwrap().y,
+        -25.0,
+        "rullningen ska följa med"
+    );
+    assert_eq!(nytt.value("avsnitt"), Some(NodeValue::Bool(false)));
+    assert_eq!(nytt.value("delare"), Some(NodeValue::Number(150.0)));
+    assert_eq!(
+        nytt.value("x"),
+        Some(NodeValue::Number(4.0)),
+        "talet kommer ur programmets data, inte från vyn"
+    );
+
+    // Utkastet lever kvar: skrivs Enter nu blir det 8, inte 4.
+    let mut prov = Prov {
+        document: nytt,
+        state: prov.state,
+    };
+    prov.skriv("", &[Key::Enter]);
+    assert_eq!(prov.tal("x"), 8.0);
+}
+
+#[test]
+fn nytt_innehall_borjar_i_sitt_utgangslage() {
+    let gammalt = Document::new(
+        Node::panel()
+            .with_id("rot")
+            .with_child(Node::collapsible("a", "A", false)),
+    );
+    let mut nytt = Document::new(Node::panel().with_id("rot").with_children([
+        Node::collapsible("a", "A", true),
+        Node::collapsible("b", "B", true),
+    ]));
+    nytt.carry_view_state_from(&gammalt);
+
+    assert_eq!(
+        nytt.value("a"),
+        Some(NodeValue::Bool(false)),
+        "det användaren gjort vinner över det som byggdes"
+    );
+    assert_eq!(
+        nytt.value("b"),
+        Some(NodeValue::Bool(true)),
+        "en ny nod har inget att ärva"
+    );
+}
+
+#[test]
+fn en_namnlos_panel_med_bakgrund_tar_anda_pekaren() {
+    // Den kan inte rapporteras – det finns inget att rapportera den som –
+    // men den är ogenomskinlig. Går klicket igenom hamnar det i spelet
+    // bakom, och felet märks först när någon klickar i tomrummet i ett
+    // gränssnitt och råkar skjuta.
+    let mut prov = Prov::new(Document::new(
+        Node::panel()
+            .with_style(
+                Style::column()
+                    .with_size(Size::Fixed(100.0), Size::Fixed(40.0))
+                    .with_background(Color::rgb(0.1, 0.1, 0.1)),
+            )
+            .with_child(Node::label("bara text")),
+    ));
+
+    let events = prov.peka(Pointer {
+        position: Vec2::new(50.0, 20.0),
+        ..Default::default()
+    });
+    assert!(events.pointer_over_ui);
+    assert_eq!(events.hovered, None, "det finns inget id att hovra");
+}
+
+#[test]
+fn en_panel_utan_bakgrund_slapper_igenom() {
+    let mut prov = Prov::new(Document::new(
+        Node::panel().with_style(Style::column().with_size(Size::Fill, Size::Fill)),
+    ));
+    let events = prov.peka(Pointer {
+        position: Vec2::new(50.0, 20.0),
+        ..Default::default()
+    });
+    assert!(
+        !events.pointer_over_ui,
+        "luft är luft – en helskärmsrot ska inte svälja varje klick"
+    );
+}
