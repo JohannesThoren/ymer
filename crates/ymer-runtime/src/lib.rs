@@ -22,7 +22,9 @@ pub mod console;
 #[cfg(feature = "demo")]
 pub mod demo;
 pub mod scripts;
+pub mod ui;
 pub use scripts::ScriptHost;
+pub use ui::UiFocus;
 
 pub mod prelude {
     pub use crate::{App, AppConfig, Update, build_render_list};
@@ -70,6 +72,8 @@ pub struct App {
     console: Option<console::DebugConsole>,
     scripts: Option<scripts::ScriptHost>,
     script_registry: Option<ymer_scene::TypeRegistry>,
+    ui: Option<ui::UiFn>,
+    game_ui: Option<ui::GameUi>,
 }
 
 impl App {
@@ -107,6 +111,8 @@ impl App {
             console: None,
             scripts: None,
             script_registry: None,
+            ui: None,
+            game_ui: None,
         }
     }
 
@@ -133,6 +139,18 @@ impl App {
     ) -> Self {
         self.scripts = Some(host);
         self.script_registry = Some(registry);
+        self
+    }
+
+    /// Ritar spelets eget gränssnitt varje frame. Stängningen får en
+    /// `egui::Context` och hela `World`, så en HUD kan läsa resurser och
+    /// knappar kan ändra dem direkt.
+    ///
+    /// Medan UI:t är uppe sätts [`UiFocus`] i världen. Ett spel som tolkar
+    /// musklick ska läsa den först, annars går ett klick på en knapp
+    /// *också* vidare till spelvärlden.
+    pub fn with_ui(mut self, ui: impl FnMut(&egui::Context, &mut World) + 'static) -> Self {
+        self.ui = Some(Box::new(ui));
         self
     }
 
@@ -203,6 +221,15 @@ impl ApplicationHandler for App {
             setup(&mut self.world, &mut renderer, &mut self.assets);
         }
 
+        if self.ui.is_some() {
+            self.world.insert_resource(ui::UiFocus::default());
+            self.game_ui = Some(ui::GameUi::new(
+                renderer.device(),
+                renderer.output_format(),
+                &window,
+            ));
+        }
+
         if self.console_enabled {
             self.console = Some(console::DebugConsole::new(
                 renderer.device(),
@@ -225,6 +252,30 @@ impl ApplicationHandler for App {
             && console.handle_window_event(&window, &event)
         {
             window.request_redraw();
+            return;
+        }
+
+        // Spelets UI ser eventet efter konsolen men före spelvärlden. Tar
+        // egui hand om det – ett klick på en knapp, text i ett fält – ska
+        // spelet inte se samma händelse.
+        //
+        // Resize och stängning går alltid vidare: de är fönstrets, inte
+        // UI:ts, och egui rapporterar ändå att den "konsumerat" dem.
+        let ui_consumed = match (self.window.clone(), &mut self.game_ui) {
+            (Some(window), Some(game_ui)) => game_ui.handle_window_event(&window, &event),
+            _ => false,
+        };
+        if ui_consumed
+            && !matches!(
+                event,
+                WindowEvent::CloseRequested
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::RedrawRequested
+            )
+        {
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
             return;
         }
 
@@ -295,12 +346,21 @@ impl ApplicationHandler for App {
                     let list =
                         build_render_list(&mut self.world, renderer.aspect_ratio(), &self.assets);
 
+                    // Konsolen och spelets UI ritas aldrig samtidigt:
+                    // konsolen tar all input när den är öppen, så att visa
+                    // en HUD under den vore missvisande.
                     let render_result = match (&mut self.console, &self.window) {
                         (Some(console), Some(window)) if console.is_open() => {
                             console.update(window, &mut self.world, renderer.size());
                             renderer.render_with_overlay(&list, Some(console.overlay_mut()))
                         }
-                        _ => renderer.render(&list),
+                        _ => match (&mut self.game_ui, &mut self.ui, &self.window) {
+                            (Some(game_ui), Some(ui), Some(window)) => {
+                                game_ui.update(window, &mut self.world, renderer.size(), ui);
+                                renderer.render_with_overlay(&list, Some(game_ui.overlay_mut()))
+                            }
+                            _ => renderer.render(&list),
+                        },
                     };
 
                     if let Err(err) = render_result {
