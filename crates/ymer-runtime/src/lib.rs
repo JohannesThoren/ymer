@@ -23,6 +23,7 @@ pub mod console;
 pub mod demo;
 pub mod scripts;
 pub mod ui;
+pub mod ui_backend;
 pub use scripts::ScriptHost;
 pub use ui::UiFocus;
 

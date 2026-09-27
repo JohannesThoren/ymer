@@ -279,6 +279,13 @@ pub struct RenderList {
     pub sprite_items: Vec<DrawItem>,
     /// Ritas sist utan djuptest – gizmos och annat som alltid ska synas.
     pub overlay_items: Vec<DrawItem>,
+    /// Gränssnitt i *skärmrymd*: transformen tolkas som pixlar med origo
+    /// uppe till vänster, inte som en plats i världen.
+    ///
+    /// Egen lista och inte `overlay_items`, för de två kan inte dela
+    /// kamera. Ett gizmo ska följa med när man vrider vyn; en knapp ska
+    /// ligga still.
+    pub ui_items: Vec<DrawItem>,
 }
 
 impl Default for RenderList {
@@ -290,6 +297,7 @@ impl Default for RenderList {
             items: Vec::new(),
             sprite_items: Vec::new(),
             overlay_items: Vec::new(),
+            ui_items: Vec::new(),
         }
     }
 }
@@ -299,6 +307,13 @@ impl Default for RenderList {
 struct CameraUniform {
     view_proj: [[f32; 4]; 4],
     light_dir: [f32; 4],
+}
+
+/// Bara en projektion: gränssnittet har ingen ljussättning att bära.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+struct ScreenUniform {
+    projection: [[f32; 4]; 4],
 }
 
 #[repr(C)]
@@ -349,6 +364,9 @@ pub struct Renderer {
     overlay_pipeline: wgpu::RenderPipeline,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    ui_pipeline: wgpu::RenderPipeline,
+    ui_camera_buffer: wgpu::Buffer,
+    ui_camera_bind_group: wgpu::BindGroup,
     instance_buffer: wgpu::Buffer,
     instance_capacity: usize,
     material_layout: wgpu::BindGroupLayout,
@@ -465,6 +483,13 @@ impl Renderer {
             }],
         });
 
+        let ui_camera_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("ui screen uniform"),
+            size: size_of::<ScreenUniform>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("camera bind group"),
             layout: &camera_layout,
@@ -528,6 +553,16 @@ impl Renderer {
             &material_layout,
             DepthMode::Overlay,
         );
+        let ui_camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("ui camera bind group"),
+            layout: &camera_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ui_camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        let ui_pipeline = build_ui_pipeline(&device, format, &camera_layout, &material_layout);
         let depth_view = create_depth_view(&device, width, height);
 
         let instance_capacity = 256;
@@ -548,6 +583,9 @@ impl Renderer {
             overlay_pipeline,
             camera_buffer,
             camera_bind_group,
+            ui_pipeline,
+            ui_camera_buffer,
+            ui_camera_bind_group,
             instance_buffer,
             instance_capacity,
             material_layout,
@@ -747,6 +785,13 @@ impl Renderer {
         items.extend_from_slice(&overlay_draws);
         let overlay_range = sprite_range.end..items.len();
 
+        // Gränssnittet sorteras på material precis som resten, men *utan*
+        // att blandas med dem: det ritas i ett eget pass med en annan
+        // kamera. Ordningen inom listan bevaras för överlappande paneler,
+        // så bara grannar med samma material slås ihop.
+        items.extend_from_slice(&list.ui_items);
+        let ui_range = overlay_range.end..items.len();
+
         stats.drawn = items.len();
 
         stats.prepare = phase.elapsed();
@@ -774,6 +819,28 @@ impl Renderer {
             self.queue
                 .write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances));
         }
+
+        // Pixlar in, klippkoordinater ut. Origo uppe till vänster och y
+        // nedåt, så att musens koordinater och gränssnittets är samma.
+        let (screen_width, screen_height) = self.size();
+        self.queue.write_buffer(
+            &self.ui_camera_buffer,
+            0,
+            bytemuck::bytes_of(&ScreenUniform {
+                // Byggd för hand i stället för med en hjälpfunktion:
+                // konventionerna skiljer sig mellan grafik-API:er, och
+                // här syns det exakt vad som händer. x går 0..bredd till
+                // -1..1, y går 0..höjd till 1..-1 (nedåt i bild), och z
+                // lämnas som den är – djupet är ändå avstängt.
+                projection: Mat4::from_cols_array_2d(&[
+                    [2.0 / screen_width.max(1) as f32, 0.0, 0.0, 0.0],
+                    [0.0, -2.0 / screen_height.max(1) as f32, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [-1.0, 1.0, 0.0, 1.0],
+                ])
+                .to_cols_array_2d(),
+            }),
+        );
 
         stats.upload = phase.elapsed();
         let phase = std::time::Instant::now();
@@ -885,6 +952,18 @@ impl Renderer {
             if !overlay_range.is_empty() {
                 pass.set_pipeline(&self.overlay_pipeline);
                 run(&mut pass, &mut bound, overlay_range, &mut draw_calls);
+            }
+
+            // Gränssnittet sist, med den ortografiska pixelmatrisen i
+            // stället för scenens kamera. Bind group 0 byts, inte bara
+            // pipelinen – det är kameran som skiljer dem åt.
+            if !ui_range.is_empty() {
+                pass.set_pipeline(&self.ui_pipeline);
+                pass.set_bind_group(0, &self.ui_camera_bind_group, &[]);
+                // Materialet kan vara bundet sedan tidigare pass, men med
+                // en annan bind group 0; tvinga fram en ny bindning.
+                bound = None;
+                run(&mut pass, &mut bound, ui_range, &mut draw_calls);
             }
 
             if let Some(overlay) = overlay {
@@ -1082,6 +1161,68 @@ enum DepthMode {
     Transparent,
     /// Gizmos: ritar alltid, skriver inget djup.
     Overlay,
+}
+
+/// Pipeline för gränssnitt: ingen ljussättning, inget djuptest.
+///
+/// Egen shader och egen kamera. Mesh-shadern skulle skugga en HUD efter
+/// en ljusriktning i världen, och scenens kamera skulle få knappar att
+/// glida omkring när spelaren vrider sig.
+fn build_ui_pipeline(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+    camera_layout: &wgpu::BindGroupLayout,
+    material_layout: &wgpu::BindGroupLayout,
+) -> wgpu::RenderPipeline {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("ui shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("shaders/ui.wgsl").into()),
+    });
+
+    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("ui layout"),
+        bind_group_layouts: &[Some(camera_layout), Some(material_layout)],
+        immediate_size: 0,
+    });
+
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("ui pipeline"),
+        layout: Some(&layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs_main"),
+            compilation_options: Default::default(),
+            buffers: &[Some(Vertex::layout()), Some(InstanceRaw::layout())],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs_main"),
+            compilation_options: Default::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            front_face: wgpu::FrontFace::Ccw,
+            // Kvadraten kan vändas av en negativ skala; ett gränssnitt
+            // ska synas ändå.
+            cull_mode: None,
+            ..Default::default()
+        },
+        depth_stencil: Some(wgpu::DepthStencilState {
+            format: DEPTH_FORMAT,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::Always),
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        }),
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+    })
 }
 
 fn build_mesh_pipeline(

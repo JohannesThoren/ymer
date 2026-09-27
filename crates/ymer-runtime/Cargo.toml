@@ -13,6 +13,7 @@ demo = []
 ymer-core = { workspace = true }
 ymer-render = { workspace = true }
 ymer-scene = { workspace = true }
+ymer-ui = { workspace = true }
 ymer-script = { workspace = true }
 bevy_ecs = { workspace = true }
 winit = { workspace = true }
@@ -25,6 +26,13 @@ serde = { workspace = true }
 ron = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
+
+[dev-dependencies]
+image = { workspace = true }
+
+[[example]]
+name = "ui_gpu"
+required-features = ["demo"]
 
 [[example]]
 name = "headless"
