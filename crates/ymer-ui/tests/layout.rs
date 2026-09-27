@@ -254,13 +254,13 @@ fn knapp_dokument() -> Document {
 
 #[test]
 fn klick_kraver_ner_och_upp_pa_samma_nod() {
-    let document = knapp_dokument();
+    let mut document = knapp_dokument();
     let laid_out = layout(&document, viewport(), &metrics());
     let mut state = State::default();
     let pa_knappen = Vec2::new(50.0, 20.0);
 
     let ner = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: pa_knappen,
@@ -272,7 +272,7 @@ fn klick_kraver_ner_och_upp_pa_samma_nod() {
     assert!(ner.clicked.is_empty(), "nedtryck är inte ett klick än");
 
     let upp = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: pa_knappen,
@@ -285,12 +285,12 @@ fn klick_kraver_ner_och_upp_pa_samma_nod() {
 
 #[test]
 fn slappt_utanfor_ger_inget_klick() {
-    let document = knapp_dokument();
+    let mut document = knapp_dokument();
     let laid_out = layout(&document, viewport(), &metrics());
     let mut state = State::default();
 
     state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(50.0, 20.0),
@@ -300,7 +300,7 @@ fn slappt_utanfor_ger_inget_klick() {
         },
     );
     let upp = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(400.0, 400.0),
@@ -316,12 +316,12 @@ fn slappt_utanfor_ger_inget_klick() {
 
 #[test]
 fn pekaren_over_ui_flaggas() {
-    let document = knapp_dokument();
+    let mut document = knapp_dokument();
     let laid_out = layout(&document, viewport(), &metrics());
     let mut state = State::default();
 
     let over = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(50.0, 20.0),
@@ -331,7 +331,7 @@ fn pekaren_over_ui_flaggas() {
     assert!(over.pointer_over_ui, "spelet bakom ska inte reagera");
 
     let bredvid = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(400.0, 400.0),
@@ -345,7 +345,7 @@ fn pekaren_over_ui_flaggas() {
 fn genomskinlig_panel_blockerar_inte() {
     // En panel utan bakgrund är luft. Annars hade en helskärmsrot
     // svalt varje klick i spelet bakom.
-    let document = Document::new(
+    let mut document = Document::new(
         Node::panel()
             .with_id("rot")
             .with_style(Style::stack().with_size(Size::Fill, Size::Fill)),
@@ -353,7 +353,7 @@ fn genomskinlig_panel_blockerar_inte() {
     let laid_out = layout(&document, viewport(), &metrics());
     let mut state = State::default();
     let events = state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(400.0, 300.0),
@@ -417,13 +417,13 @@ fn ritlistan_foljer_traedet() {
 
 #[test]
 fn hovrad_knapp_ritas_ljusare() {
-    let document = knapp_dokument();
+    let mut document = knapp_dokument();
     let laid_out = layout(&document, viewport(), &metrics());
 
     let vilande = draw(&document, &laid_out, &State::default());
     let mut state = State::default();
     state.update(
-        &document,
+        &mut document,
         &laid_out,
         Pointer {
             position: Vec2::new(50.0, 20.0),

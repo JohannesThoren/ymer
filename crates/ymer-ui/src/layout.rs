@@ -59,6 +59,60 @@ fn measure(node: &Node, text: &dyn TextMeasure, available: Vec2) -> Vec2 {
     // Innehållets egen storlek.
     let content = match &node.kind {
         Kind::Label { text: s } | Kind::Button { text: s } => text.measure(s, style.font_size),
+
+        // Kryssruta och radioknapp: en ruta framför etiketten.
+        Kind::Checkbox { label, .. } | Kind::Radio { label, .. } => {
+            let box_size = style.font_size;
+            let label_size = text.measure(label, style.font_size);
+            Vec2::new(
+                box_size + crate::metrics::GAP + label_size.x,
+                box_size.max(label_size.y),
+            )
+        }
+
+        // Ett reglage har ingen egen bredd – det tar den plats det får.
+        // Höjden räcker för greppet.
+        Kind::Slider { .. } => Vec2::new(0.0, style.font_size.max(crate::metrics::HANDLE)),
+
+        // Fälten mäts efter sin text, men aldrig smalare än att en rad
+        // ryms; ett tomt fält ska inte kollapsa till en strimma.
+        Kind::TextInput {
+            text: s,
+            placeholder,
+        } => {
+            let shown = if s.is_empty() { placeholder } else { s };
+            let size = text.measure(shown, style.font_size);
+            Vec2::new(
+                size.x.max(crate::metrics::MIN_FIELD),
+                text.measure("M", style.font_size).y,
+            )
+        }
+        Kind::TextArea { text: s, rows } => {
+            let line = text.measure("M", style.font_size).y;
+            let size = text.measure(s, style.font_size);
+            Vec2::new(
+                size.x.max(crate::metrics::MIN_FIELD),
+                line * (*rows).max(1) as f32,
+            )
+        }
+        Kind::Dropdown {
+            options,
+            selected,
+            placeholder,
+        } => {
+            // Bred nog för det längsta alternativet, så att listan inte
+            // hoppar i bredd när man väljer.
+            let mut widest = text.measure(placeholder, style.font_size).x;
+            for option in options {
+                widest = widest.max(text.measure(option, style.font_size).x);
+            }
+            let _ = selected;
+            Vec2::new(
+                widest + crate::metrics::GAP + crate::metrics::ARROW,
+                text.measure("M", style.font_size).y,
+            )
+        }
+
         // En bild eller stapel har ingen inneboende storlek här; den
         // styrs av `width`/`height`. Att gissa på bildens pixelmått hade
         // krävt att layouten kände till texturerna.

@@ -31,6 +31,47 @@ pub enum Kind {
         value: f32,
         fill: crate::geom::Color,
     },
+
+    // --- interaktiva fält ---------------------------------------------
+    //
+    // Värdet bor i noden, inte vid sidan om. Det är hela poängen med ett
+    // retained-läge: editorn sätter ett startvärde, spelaren ändrar det,
+    // och TypeScript läser samma fält – utan att någon behöver hålla en
+    // parallell kopia i synk.
+    Checkbox {
+        label: String,
+        checked: bool,
+    },
+    /// Flera med samma `group` hör ihop; bara en kan vara vald.
+    Radio {
+        label: String,
+        group: String,
+        checked: bool,
+    },
+    Slider {
+        value: f32,
+        min: f32,
+        max: f32,
+        /// Avrundning. 0 betyder steglöst.
+        step: f32,
+    },
+    /// Enradigt textfält.
+    TextInput {
+        text: String,
+        /// Visas grått när fältet är tomt.
+        placeholder: String,
+    },
+    /// Flerradigt fält. `rows` styr bara höjden när `Size::Auto` används.
+    TextArea {
+        text: String,
+        rows: u32,
+    },
+    Dropdown {
+        options: Vec<String>,
+        /// Index i `options`, eller None när inget är valt.
+        selected: Option<usize>,
+        placeholder: String,
+    },
 }
 
 impl Kind {
@@ -38,14 +79,24 @@ impl Kind {
     /// oftast – en HUD är mest siffror som byts varje frame.
     pub fn text(&self) -> Option<&str> {
         match self {
-            Kind::Label { text } | Kind::Button { text } => Some(text),
+            Kind::Label { text }
+            | Kind::Button { text }
+            | Kind::TextInput { text, .. }
+            | Kind::TextArea { text, .. } => Some(text),
+            Kind::Checkbox { label, .. } | Kind::Radio { label, .. } => Some(label),
+            Kind::Dropdown {
+                options, selected, ..
+            } => selected.and_then(|i| options.get(i)).map(String::as_str),
             _ => None,
         }
     }
 
     pub fn set_text(&mut self, new: impl Into<String>) -> bool {
         match self {
-            Kind::Label { text } | Kind::Button { text } => {
+            Kind::Label { text }
+            | Kind::Button { text }
+            | Kind::TextInput { text, .. }
+            | Kind::TextArea { text, .. } => {
                 *text = new.into();
                 true
             }
@@ -100,12 +151,92 @@ impl Node {
         })
     }
 
+    pub fn checkbox(id: impl Into<String>, label: impl Into<String>, checked: bool) -> Self {
+        Self::new(Kind::Checkbox {
+            label: label.into(),
+            checked,
+        })
+        .with_id(id)
+    }
+
+    pub fn radio(
+        id: impl Into<String>,
+        group: impl Into<String>,
+        label: impl Into<String>,
+        checked: bool,
+    ) -> Self {
+        Self::new(Kind::Radio {
+            label: label.into(),
+            group: group.into(),
+            checked,
+        })
+        .with_id(id)
+    }
+
+    pub fn slider(id: impl Into<String>, value: f32, min: f32, max: f32) -> Self {
+        Self::new(Kind::Slider {
+            value,
+            min,
+            max,
+            step: 0.0,
+        })
+        .with_id(id)
+    }
+
+    pub fn text_input(id: impl Into<String>, text: impl Into<String>) -> Self {
+        Self::new(Kind::TextInput {
+            text: text.into(),
+            placeholder: String::new(),
+        })
+        .with_id(id)
+    }
+
+    pub fn text_area(id: impl Into<String>, text: impl Into<String>, rows: u32) -> Self {
+        Self::new(Kind::TextArea {
+            text: text.into(),
+            rows: rows.max(1),
+        })
+        .with_id(id)
+    }
+
+    pub fn dropdown(
+        id: impl Into<String>,
+        options: impl IntoIterator<Item = impl Into<String>>,
+        selected: Option<usize>,
+    ) -> Self {
+        Self::new(Kind::Dropdown {
+            options: options.into_iter().map(Into::into).collect(),
+            selected,
+            placeholder: "Välj…".to_string(),
+        })
+        .with_id(id)
+    }
+
     pub fn bar(value: f32, fill: crate::geom::Color) -> Self {
         Self::new(Kind::Bar { value, fill })
     }
 
     pub fn with_id(mut self, id: impl Into<String>) -> Self {
         self.id = id.into();
+        self
+    }
+
+    /// Platshållartexten för ett fält eller en dropdown.
+    pub fn with_placeholder(mut self, text: impl Into<String>) -> Self {
+        match &mut self.kind {
+            Kind::TextInput { placeholder, .. } | Kind::Dropdown { placeholder, .. } => {
+                *placeholder = text.into();
+            }
+            _ => {}
+        }
+        self
+    }
+
+    /// Stegar ett reglage. 0 är steglöst.
+    pub fn with_step(mut self, new_step: f32) -> Self {
+        if let Kind::Slider { step, .. } = &mut self.kind {
+            *step = new_step;
+        }
         self
     }
 

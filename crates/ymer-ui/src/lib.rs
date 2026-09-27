@@ -18,7 +18,7 @@
 //! ```
 //! use ymer_ui::prelude::*;
 //!
-//! let document = Document::new(
+//! let mut document = Document::new(
 //!     Node::panel()
 //!         .with_style(Style::stack().with_size(Size::Fill, Size::Fill))
 //!         .with_child(Node::button("spela", "Spela").with_style(
@@ -36,10 +36,10 @@
 //!
 //! // Pekaren mitt på knappen, nedtryckt och sedan släppt.
 //! let pa_knappen = Vec2::new(60.0, 16.0);
-//! state.update(&document, &laid_out, Pointer {
+//! state.update(&mut document, &laid_out, Pointer {
 //!     position: pa_knappen, down: true, pressed: true, ..Default::default()
 //! });
-//! let events = state.update(&document, &laid_out, Pointer {
+//! let events = state.update(&mut document, &laid_out, Pointer {
 //!     position: pa_knappen, released: true, ..Default::default()
 //! });
 //!
@@ -53,16 +53,17 @@
 pub mod draw;
 pub mod geom;
 pub mod layout;
+pub mod metrics;
 pub mod node;
 pub mod state;
 pub mod style;
 pub mod text;
 
-pub use draw::{Command, DrawList, draw};
+pub use draw::{Command, DrawList, draw, draw_with};
 pub use geom::{Color, Edges, Rect, Vec2};
 pub use layout::{LaidOut, Placed, layout};
 pub use node::{Document, Kind, Node};
-pub use state::{Events, Pointer, State, hit_test};
+pub use state::{Events, Input, Key, Pointer, State, hit_test};
 pub use style::{Align, Anchor, Justify, Layout, Size, Style};
 pub use text::{MonospaceMetrics, TextMeasure};
 
@@ -70,11 +71,11 @@ pub use text::{MonospaceMetrics, TextMeasure};
 pub use text::{Font, FontAtlas};
 
 pub mod prelude {
-    pub use crate::draw::{Command, DrawList, draw};
+    pub use crate::draw::{Command, DrawList, draw, draw_with};
     pub use crate::geom::{Color, Edges, Rect, Vec2};
     pub use crate::layout::layout;
     pub use crate::node::{Document, Kind, Node};
-    pub use crate::state::{Events, Pointer, State};
+    pub use crate::state::{Events, Input, Key, Pointer, State};
     pub use crate::style::{Align, Anchor, Justify, Layout, Size, Style};
     pub use crate::text::{MonospaceMetrics, TextMeasure};
 }

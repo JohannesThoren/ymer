@@ -5,10 +5,12 @@
 //! till sitt eget API. Det är det som gör att `ymer-ui` kan användas
 //! utanför Ymer utan att något behöver ändras.
 
-use crate::geom::{Color, Rect};
+use crate::geom::{Color, Rect, Vec2};
 use crate::layout::LaidOut;
+use crate::metrics;
 use crate::node::{Document, Kind, Node};
 use crate::state::State;
+use crate::text::TextMeasure;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
@@ -53,14 +55,75 @@ impl DrawList {
 ///
 /// `state` avgör hur knappar ser ut just nu. Den skiljs från dokumentet
 /// med flit: ett hovrat läge är inget som ska sparas till fil.
+/// Bygger ritlistan med antagen monospace-mätning.
+///
+/// Bekvämt i tester och när inget fält har fokus. Markören i ett textfält
+/// placeras dock efter mätningen, så med ett proportionellt typsnitt
+/// hamnar den fel – använd [`draw_with`] och skicka samma mätning som
+/// layouten fick.
 pub fn draw(document: &Document, laid_out: &LaidOut, state: &State) -> DrawList {
+    draw_with(
+        document,
+        laid_out,
+        state,
+        &crate::text::MonospaceMetrics::default(),
+    )
+}
+
+/// Som [`draw`], men med den mätning layouten använde.
+///
+/// Behövs för det som måste hamna *i* en text: markören i ett fält står
+/// efter så många tecken, och utan samma mätning hamnar den fel.
+pub fn draw_with(
+    document: &Document,
+    laid_out: &LaidOut,
+    state: &State,
+    text: &dyn TextMeasure,
+) -> DrawList {
     let mut list = DrawList::default();
     let mut index = 0usize;
-    emit(&document.root, laid_out, state, &mut index, &mut list);
+    emit(&document.root, laid_out, state, text, &mut index, &mut list);
+
+    // Den öppna dropdownens lista ritas sist, ovanpå allt annat. Den
+    // sticker ut ur sin förälder och kan därför inte ritas i trädets
+    // ordning utan att hamna under nästa syskon.
+    if let Some(open) = state.open.as_ref()
+        && let (Some(node), Some(rect)) = (document.find(open), laid_out.rect(open))
+        && let Kind::Dropdown { options, .. } = &node.kind
+    {
+        let row = rect.height.max(1.0);
+        let panel = node
+            .style
+            .background
+            .unwrap_or(Color::rgb(0.18, 0.20, 0.25));
+        for (i, option) in options.iter().enumerate() {
+            let slot = Rect::new(rect.x, rect.bottom() + row * i as f32, rect.width, row);
+            let hovered = slot.contains(state.pointer_position());
+            list.commands.push(Command::Rect {
+                rect: slot,
+                color: if hovered { shade(panel, 1.3) } else { panel },
+                radius: 0.0,
+            });
+            list.commands.push(Command::Text {
+                rect: slot.shrink(crate::geom::Edges::symmetric(6.0, 0.0)),
+                text: option.clone(),
+                size: node.style.font_size,
+                color: node.style.color,
+            });
+        }
+    }
+
     list
 }
 
-fn emit(node: &Node, laid_out: &LaidOut, state: &State, index: &mut usize, list: &mut DrawList) {
+fn emit(
+    node: &Node,
+    laid_out: &LaidOut,
+    state: &State,
+    text: &dyn TextMeasure,
+    index: &mut usize,
+    list: &mut DrawList,
+) {
     if !node.style.visible {
         return;
     }
@@ -70,7 +133,10 @@ fn emit(node: &Node, laid_out: &LaidOut, state: &State, index: &mut usize, list:
     let rect = placed.rect;
     *index += 1;
 
-    let interactive = matches!(node.kind, Kind::Button { .. });
+    let interactive = matches!(
+        node.kind,
+        Kind::Button { .. } | Kind::Checkbox { .. } | Kind::Radio { .. } | Kind::Dropdown { .. }
+    );
     let hovered = interactive && state.hovered.as_deref() == Some(node.id.as_str());
     let held = hovered && state.pointer_down;
 
@@ -122,12 +188,210 @@ fn emit(node: &Node, laid_out: &LaidOut, state: &State, index: &mut usize, list:
                 });
             }
         }
+        Kind::Checkbox { label, checked } | Kind::Radio { label, checked, .. } => {
+            let radio = matches!(node.kind, Kind::Radio { .. });
+            let box_size = node.style.font_size;
+            let square = Rect::new(
+                rect.x,
+                rect.y + (rect.height - box_size) * 0.5,
+                box_size,
+                box_size,
+            );
+            list.commands.push(Command::Rect {
+                rect: square,
+                color: Color::rgb(0.12, 0.13, 0.17),
+                // Radioknappen är rund, kryssrutan kantig. Rundningen är
+                // ritarens ansvar; mjukvaruexemplet struntar i den.
+                radius: if radio { box_size * 0.5 } else { 3.0 },
+            });
+            if *checked {
+                let inset = box_size * 0.28;
+                list.commands.push(Command::Rect {
+                    rect: Rect::new(
+                        square.x + inset,
+                        square.y + inset,
+                        box_size - inset * 2.0,
+                        box_size - inset * 2.0,
+                    ),
+                    color: node.style.color,
+                    radius: if radio { box_size * 0.5 } else { 2.0 },
+                });
+            }
+            list.commands.push(Command::Text {
+                rect: Rect::new(
+                    square.right() + metrics::GAP,
+                    rect.y,
+                    (rect.width - box_size - metrics::GAP).max(0.0),
+                    rect.height,
+                ),
+                text: label.clone(),
+                size: node.style.font_size,
+                color: node.style.color,
+            });
+        }
+
+        Kind::Slider {
+            value, min, max, ..
+        } => {
+            let span = (*max - *min).abs().max(f32::EPSILON);
+            let t = ((*value - *min) / span).clamp(0.0, 1.0);
+            let track_height = (rect.height * 0.3).max(3.0);
+            let track = Rect::new(
+                rect.x,
+                rect.y + (rect.height - track_height) * 0.5,
+                rect.width,
+                track_height,
+            );
+            list.commands.push(Command::Rect {
+                rect: track,
+                color: Color::rgb(0.12, 0.13, 0.17),
+                radius: track_height * 0.5,
+            });
+            // Fylld del fram till greppet.
+            let travel = (rect.width - metrics::HANDLE).max(0.0);
+            list.commands.push(Command::Rect {
+                rect: Rect::new(
+                    track.x,
+                    track.y,
+                    metrics::HANDLE * 0.5 + travel * t,
+                    track.height,
+                ),
+                color: node.style.color,
+                radius: track_height * 0.5,
+            });
+            list.commands.push(Command::Rect {
+                rect: Rect::new(rect.x + travel * t, rect.y, metrics::HANDLE, rect.height),
+                color: if hovered || held {
+                    shade(node.style.color, 1.25)
+                } else {
+                    Color::rgb(0.86, 0.89, 0.94)
+                },
+                radius: metrics::HANDLE * 0.5,
+            });
+        }
+
+        Kind::TextInput {
+            text: value,
+            placeholder,
+        } => {
+            let focused = state.focused.as_deref() == Some(node.id.as_str());
+            let inner = rect.shrink(node.style.padding);
+            let empty = value.is_empty();
+            list.commands.push(Command::Text {
+                rect: inner,
+                text: if empty {
+                    placeholder.clone()
+                } else {
+                    value.clone()
+                },
+                size: node.style.font_size,
+                color: if empty {
+                    node.style.color.with_alpha(0.45)
+                } else {
+                    node.style.color
+                },
+            });
+            if focused {
+                caret(
+                    list,
+                    inner,
+                    value,
+                    state.caret,
+                    node.style.font_size,
+                    text,
+                    node.style.color,
+                );
+            }
+        }
+
+        Kind::TextArea { text: value, .. } => {
+            let focused = state.focused.as_deref() == Some(node.id.as_str());
+            let inner = rect.shrink(node.style.padding);
+            list.commands.push(Command::Text {
+                rect: inner,
+                text: value.clone(),
+                size: node.style.font_size,
+                color: node.style.color,
+            });
+            if focused {
+                // Markören hamnar på den rad den står i.
+                let before: String = value.chars().take(state.caret).collect();
+                let line = before.rsplit('\n').next().unwrap_or("");
+                let row = before.matches('\n').count() as f32;
+                let line_height = text.measure("M", node.style.font_size).y;
+                let offset = text.measure(line, node.style.font_size).x;
+                list.commands.push(Command::Rect {
+                    rect: Rect::new(
+                        inner.x + offset,
+                        inner.y + row * line_height,
+                        metrics::CARET,
+                        line_height,
+                    ),
+                    color: node.style.color,
+                    radius: 0.0,
+                });
+            }
+        }
+
+        Kind::Dropdown {
+            options,
+            selected,
+            placeholder,
+        } => {
+            let inner = rect.shrink(node.style.padding);
+            let chosen = selected.and_then(|i| options.get(i));
+            list.commands.push(Command::Text {
+                rect: inner,
+                text: chosen.cloned().unwrap_or_else(|| placeholder.clone()),
+                size: node.style.font_size,
+                color: if chosen.is_some() {
+                    node.style.color
+                } else {
+                    node.style.color.with_alpha(0.45)
+                },
+            });
+            // Pilen: en liten platta i högerkanten. Att rita en triangel
+            // hade krävt ett nytt ritkommando, och listan ska vara smal.
+            let size = metrics::ARROW * 0.5;
+            list.commands.push(Command::Rect {
+                rect: Rect::new(
+                    inner.right() - metrics::ARROW,
+                    inner.y + (inner.height - size) * 0.5,
+                    size,
+                    size,
+                ),
+                color: node.style.color.with_alpha(0.7),
+                radius: 1.0,
+            });
+        }
+
         Kind::Panel | Kind::Spacer => {}
     }
 
     for child in &node.children {
-        emit(child, laid_out, state, index, list);
+        emit(child, laid_out, state, text, index, list);
     }
+}
+
+/// Textmarkören efter `caret` tecken.
+fn caret(
+    list: &mut DrawList,
+    inner: Rect,
+    value: &str,
+    caret: usize,
+    size: f32,
+    text: &dyn TextMeasure,
+    color: Color,
+) {
+    let before: String = value.chars().take(caret).collect();
+    let offset = text.measure(&before, size).x;
+    let height = text.measure("M", size).y;
+    list.commands.push(Command::Rect {
+        rect: Rect::new(inner.x + offset, inner.y, metrics::CARET, height),
+        color,
+        radius: 0.0,
+    });
+    let _ = Vec2::ZERO;
 }
 
 /// Ljusare eller mörkare variant, för hovrade och nedtryckta knappar.
