@@ -1,22 +1,25 @@
-//! Renderar hela editorn – scen plus egui-paneler – till en textur.
+//! Renderar hela editorn – scen plus gränssnitt – till en bild.
 //! Låter oss se UI:t utan skärm och funkar som regressionstest.
 //!
-//!     cargo run -p ymer-editor --example headless_editor
+//!     cargo run -p ymer-editor --example headless_editor ut.png
 
 use std::time::Duration;
 
 use ymer_core::Script;
 use ymer_core::{GlobalTransform, Vec3};
+use ymer_editor::chrome::Chrome;
 use ymer_editor::gizmo;
-use ymer_editor::{EditorState, EguiOverlay, PlayMode, run_ui};
+use ymer_editor::{EditorState, PlayMode};
 use ymer_render::Renderer;
 use ymer_runtime::demo;
 use ymer_runtime::prelude::*;
+use ymer_runtime::ui_backend::UiBackend;
 use ymer_scene::{TypeRegistry, register_builtin_types};
+use ymer_ui::FontAtlas;
 
-const PIXELS_PER_POINT: f32 = 1.4;
 const WIDTH: u32 = 1600;
 const HEIGHT: u32 = 900;
+const FONT: &str = "assets/fonts/DejaVuSans.ttf";
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
@@ -128,46 +131,55 @@ fn main() -> anyhow::Result<()> {
     let after = world.get::<Transform>(target).unwrap().translation;
     println!("flyttad från {before:?} till {after:?}");
 
-    let ctx = egui::Context::default();
-    ctx.set_pixels_per_point(PIXELS_PER_POINT);
-    ctx.set_visuals(egui::Visuals::dark());
-
     let mut state = EditorState::default();
     state.playing = true;
     state.selected = selected;
-    state.playing = true;
 
-    // Första framen mäter layouten, andra ritar den färdigt. Båda måste
-    // lämnas till overlayen – en TexturesDelta som slängs oanvänd panikar.
-    let mut overlay = EguiOverlay::new(renderer.device(), renderer.output_format());
-    let points = egui::vec2(
-        WIDTH as f32 / PIXELS_PER_POINT,
-        HEIGHT as f32 / PIXELS_PER_POINT,
-    );
+    let atlas = FontAtlas::from_font_bytes(std::fs::read(FONT)?, 1024, 1024)
+        .map_err(|err| anyhow::anyhow!(err))?;
+    let mut ui = UiBackend::new(atlas, &mut renderer, &assets);
+    let mut chrome = Chrome::new();
+    let window = ymer_ui::Rect::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32);
+
+    // Två frames: den första bygger trädet, den andra ritar det med allt
+    // på plats. Samma skäl som i editorn – gränssnittet svarar alltid på
+    // förra framens träd.
+    let mut commands = ymer_ui::DrawList::default();
     for _ in 0..2 {
-        let raw_input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, points)),
-            ..Default::default()
-        };
-        let output = run_ui(&ctx, raw_input, &mut state, &mut world, &registry);
-        overlay.accept(&ctx, output, (WIDTH, HEIGHT));
+        commands = chrome
+            .frame(
+                &ymer_ui::Input::default(),
+                window,
+                &mut state,
+                &mut world,
+                &registry,
+                ui.atlas(),
+            )
+            .list;
     }
 
     let mut list = build_render_list(&mut world, renderer.aspect_ratio(), &assets);
     if let Some(selected) = selected {
         list.overlay_items = gizmo::gizmo_items(&mut world, selected, camera, gizmo_mesh, None);
     }
-    renderer.render_with_overlay(&list, Some(&mut overlay))?;
+    list.ui_items = ui.build(&commands, &assets);
+    ui.upload(&mut renderer);
+    renderer.render(&list)?;
 
+    let output = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "headless_editor.png".to_string());
     let pixels = renderer.capture_rgba()?;
-    std::fs::write(std::env::temp_dir().join("frame.raw"), &pixels)?;
+    image::RgbaImage::from_raw(WIDTH, HEIGHT, pixels)
+        .ok_or_else(|| anyhow::anyhow!("fel bildstorlek"))?
+        .save(&output)?;
 
     // Stopp: allt skripten hann göra rullas tillbaka.
     play.stop(&mut world, &registry)?;
     println!("efter stopp: {} entiteter", world.iter_entities().count());
     println!(
-        "skrev {} ({WIDTH}x{HEIGHT})",
-        std::env::temp_dir().join("frame.raw").display()
+        "skrev {output} ({WIDTH}x{HEIGHT}), {} ui-kvadrater",
+        list.ui_items.len()
     );
     Ok(())
 }

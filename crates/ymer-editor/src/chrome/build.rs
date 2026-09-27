@@ -198,7 +198,7 @@ fn files(theme: &Theme, editor: &EditorState, height: f32) -> Node {
                 .with_align(Align::Center),
         )
         .with_children([
-            Node::button("files/up", "⬆").with_style(theme.button()),
+            Node::button("files/up", "Upp").with_style(theme.button()),
             Node::label(browser.breadcrumb()).with_style(theme.dim_label()),
             Node::text_input("files/name", &browser.new_name)
                 .with_placeholder("namn.ts")
@@ -216,9 +216,14 @@ fn files(theme: &Theme, editor: &EditorState, height: f32) -> Node {
         .enumerate()
         .map(|(index, entry)| {
             let selected = browser.selected.as_deref() == Some(entry.path.as_path());
-            let icon = if entry.is_dir { "📁" } else { "📄" };
-            Node::button(format!("files/{index}"), format!("{icon}  {}", entry.name))
-                .with_style(theme.row(selected))
+            // Mappar känns igen på snedstrecket, som i en terminal.
+            // Ikoner hade krävt emoji, och dem har typsnittet inte.
+            let name = if entry.is_dir {
+                format!("{}/", entry.name)
+            } else {
+                entry.name.clone()
+            };
+            Node::button(format!("files/{index}"), name).with_style(theme.row(selected))
         });
 
     Node::panel()

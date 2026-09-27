@@ -196,14 +196,37 @@ mod font {
             std::mem::take(&mut self.dirty)
         }
 
-        /// Den vita pixeln, för fyllda ytor. Ligger i hörnet och är alltid
-        /// helt täckt.
+        /// Punkten i atlasen som är helt vit, för fyllda ytor.
+        ///
+        /// Ett *block* om 2x2 reserveras, men det som returneras är
+        /// punkten i mitten av det – en ruta utan bredd och höjd. Båda
+        /// delarna behövs, och skälet är filtreringen.
+        ///
+        /// En textur samplas linjärt. Sträcker man en enda texel över en
+        /// hel panel hamnar samplen på texelns kant, och där vägs
+        /// grannarna in – som är tomma, alltså genomskinliga. Panelen blir
+        /// då halvgenomskinlig, och mer ju större den är. Symptomet är att
+        /// scenen lyser igenom gränssnittet, vilket lätt misstas för en
+        /// avsiktlig effekt.
+        ///
+        /// Med en rutlös punkt mitt i ett block där alla fyra texlar är
+        /// täckta blir varje sampel exakt vit, oavsett hur den avrundas.
         pub fn white_pixel(&mut self) -> Rect {
-            if self.pixels[0] != 255 {
-                self.pixels[0] = 255;
-                self.dirty = true;
+            let width = self.width as usize;
+            for index in [0, 1, width, width + 1] {
+                if self.pixels[index] != 255 {
+                    self.pixels[index] = 255;
+                    self.dirty = true;
+                }
             }
-            Rect::new(0.0, 0.0, 1.0, 1.0)
+            // Flytta undan glyfpennan. Den börjar också i hörnet, och en
+            // glyf som rastrerades ovanpå blocket hade fått en vit fyrkant
+            // i sitt hörn – bara den första, vilket är precis den sortens
+            // fel man tittar förbi.
+            if self.pen_y == 0 {
+                self.pen_x = self.pen_x.max(3);
+            }
+            Rect::new(1.0, 1.0, 0.0, 0.0)
         }
 
         /// Rastrerar glyfen om den inte redan finns. `None` betyder att

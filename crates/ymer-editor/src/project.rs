@@ -161,3 +161,36 @@ export function update(dt: number, entities: Entity[]): void {
   }
 }
 "#;
+
+/// Alla `.ts`-filer i en katalog, som sökvägar relativa till den.
+pub fn list_scripts(dir: &std::path::Path) -> Vec<String> {
+    list_files(dir, dir, "ts")
+}
+
+/// Filer med en viss ändelse, namngivna relativt `base`.
+pub fn list_files(dir: &std::path::Path, base: &std::path::Path, extension: &str) -> Vec<String> {
+    fn walk(
+        dir: &std::path::Path,
+        base: &std::path::Path,
+        extension: &str,
+        found: &mut Vec<String>,
+    ) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, base, extension, found);
+            } else if path.extension().is_some_and(|found| found == extension) {
+                let relative = path.strip_prefix(base).unwrap_or(&path);
+                found.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+
+    let mut found = Vec::new();
+    walk(dir, base, extension, &mut found);
+    found.sort();
+    found
+}

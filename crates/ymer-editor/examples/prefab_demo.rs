@@ -4,14 +4,16 @@
 //!     cargo run -p ymer-editor --example prefab_demo
 
 use ymer_core::{Color, EntityName, GlobalTransform, Input, MeshInstance, Time, Vec3};
-use ymer_editor::{EditorState, EguiOverlay, run_ui};
+use ymer_editor::EditorState;
+use ymer_editor::chrome::Chrome;
 use ymer_render::Renderer;
 use ymer_runtime::prelude::*;
+use ymer_runtime::ui_backend::UiBackend;
 use ymer_scene::{Scene, TypeRegistry, register_builtin_types};
+use ymer_ui::FontAtlas;
 
 const WIDTH: u32 = 1600;
 const HEIGHT: u32 = 900;
-const PIXELS_PER_POINT: f32 = 1.4;
 const PROJECTS: &str = "projects";
 
 fn main() -> anyhow::Result<()> {
@@ -103,10 +105,6 @@ fn main() -> anyhow::Result<()> {
     );
 
     // --- rendera editorn med prefabsmappen öppen --------------------------
-    let ctx = egui::Context::default();
-    ctx.set_pixels_per_point(PIXELS_PER_POINT);
-    ctx.set_visuals(egui::Visuals::dark());
-
     let mut state = EditorState::default();
     state.open_project(handle.clone());
     state.selected = Some(root);
@@ -114,18 +112,26 @@ fn main() -> anyhow::Result<()> {
         browser.enter(&handle.path("prefabs"));
     }
 
-    let points = egui::vec2(
-        WIDTH as f32 / PIXELS_PER_POINT,
-        HEIGHT as f32 / PIXELS_PER_POINT,
-    );
-    let mut overlay = EguiOverlay::new(renderer.device(), renderer.output_format());
+    let atlas =
+        FontAtlas::from_font_bytes(std::fs::read("assets/fonts/DejaVuSans.ttf")?, 1024, 1024)
+            .map_err(|err| anyhow::anyhow!(err))?;
+    let mut ui = UiBackend::new(atlas, &mut renderer, &assets);
+    let mut chrome = Chrome::new();
+    let window = ymer_ui::Rect::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32);
+
+    // Två frames: den första bygger trädet, den andra ritar det färdigt.
+    let mut commands = ymer_ui::DrawList::default();
     for _ in 0..2 {
-        let raw_input = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, points)),
-            ..Default::default()
-        };
-        let output = run_ui(&ctx, raw_input, &mut state, &mut world, &registry);
-        overlay.accept(&ctx, output, (WIDTH, HEIGHT));
+        commands = chrome
+            .frame(
+                &ymer_ui::Input::default(),
+                window,
+                &mut state,
+                &mut world,
+                &registry,
+                ui.atlas(),
+            )
+            .list;
     }
 
     let mut list = build_render_list(&mut world, renderer.aspect_ratio(), &assets);
@@ -146,11 +152,16 @@ fn main() -> anyhow::Result<()> {
             None,
         );
     }
-    renderer.render_with_overlay(&list, Some(&mut overlay))?;
-    std::fs::write(
-        std::env::temp_dir().join("frame.raw"),
-        renderer.capture_rgba()?,
-    )?;
-    println!("bild skriven");
+    list.ui_items = ui.build(&commands, &assets);
+    ui.upload(&mut renderer);
+    renderer.render(&list)?;
+
+    let output = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "prefab_demo.png".to_string());
+    image::RgbaImage::from_raw(WIDTH, HEIGHT, renderer.capture_rgba()?)
+        .ok_or_else(|| anyhow::anyhow!("fel bildstorlek"))?
+        .save(&output)?;
+    println!("skrev {output}");
     Ok(())
 }

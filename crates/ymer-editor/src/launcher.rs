@@ -1,7 +1,16 @@
 //! Launchern. Första vyn: välj ett projekt eller skapa ett nytt.
+//!
+//! Byggd av `ymer-ui` som resten av editorn, men mycket enklare: den har
+//! ingen värld att läsa och inget som måste läsas tillbaka annat än
+//! namnfältet. Trädet byggs ändå om varje frame, av samma skäl som i
+//! editorn – listan ändras när man skapar ett projekt.
 
 use std::path::PathBuf;
 
+use ymer_ui::prelude::*;
+use ymer_ui::{Input, State};
+
+use crate::chrome::Theme;
 use crate::project::{self, ProjectHandle};
 
 pub struct LauncherState {
@@ -9,6 +18,9 @@ pub struct LauncherState {
     pub projects: Vec<ProjectHandle>,
     pub new_name: String,
     pub status: String,
+    document: Document,
+    ui: State,
+    theme: Theme,
 }
 
 impl LauncherState {
@@ -20,100 +32,145 @@ impl LauncherState {
             projects_dir,
             projects,
             new_name: String::new(),
+            document: Document::new(Node::panel()),
+            ui: State::default(),
+            theme: Theme::dark(),
         }
     }
 
     pub fn refresh(&mut self) {
         self.projects = project::list(&self.projects_dir);
     }
-}
 
-/// Ritar launchern. Returnerar projektet användaren valde, om något.
-pub fn run_ui(
-    ctx: &egui::Context,
-    raw_input: egui::RawInput,
-    state: &mut LauncherState,
-) -> (egui::FullOutput, Option<ProjectHandle>) {
-    let mut chosen: Option<ProjectHandle> = None;
-    let mut create = false;
-
-    let output = ctx.run_ui(raw_input, |ui| {
-        egui::Panel::top("launcher_head").show(ui, |ui| {
-            ui.add_space(10.0);
-            ui.heading("Projekt");
-            ui.label(
-                egui::RichText::new(state.projects_dir.display().to_string())
-                    .weak()
-                    .monospace(),
-            );
-            ui.add_space(10.0);
-        });
-
-        egui::Panel::bottom("launcher_new").show(ui, |ui| {
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.add(
-                    egui::TextEdit::singleline(&mut state.new_name)
-                        .hint_text("nytt projektnamn")
-                        .desired_width(240.0),
-                );
-                if ui.button("Skapa projekt").clicked() {
-                    create = true;
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(egui::RichText::new(&state.status).weak());
-                });
-            });
-            ui.add_space(8.0);
-        });
-
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            if state.projects.is_empty() {
-                ui.add_space(24.0);
-                ui.label("Inga projekt än. Skapa ett nedan.");
-                return;
-            }
-
-            for handle in &state.projects {
-                ui.add_space(6.0);
-                egui::Frame::group(ui.style()).show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.vertical(|ui| {
-                            ui.label(
-                                egui::RichText::new(&handle.project.name)
-                                    .strong()
-                                    .size(16.0),
-                            );
-                            ui.label(
-                                egui::RichText::new(handle.root.display().to_string())
-                                    .weak()
-                                    .monospace()
-                                    .size(11.0),
-                            );
-                        });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Öppna").clicked() {
-                                chosen = Some(handle.clone());
-                            }
-                        });
-                    });
-                });
-            }
-        });
-    });
-
-    if create {
-        match project::create(&state.projects_dir, &state.new_name.clone()) {
-            Ok(handle) => {
-                state.status = format!("skapade {}", handle.project.name);
-                state.new_name.clear();
-                state.refresh();
-                // Öppna direkt – man vill alltid in i projektet man just skapat.
-                chosen = Some(handle);
-            }
-            Err(err) => state.status = format!("{err}"),
-        }
+    pub fn document(&self) -> &Document {
+        &self.document
     }
 
-    (output, chosen)
+    /// En frame. Returnerar ritlistan och projektet som valdes, om något.
+    pub fn frame(
+        &mut self,
+        input: &Input,
+        window: Rect,
+        text: &dyn TextMeasure,
+    ) -> (DrawList, Option<ProjectHandle>) {
+        let laid_out = layout(&self.document, window, text);
+        let events = self.ui.update_with(&mut self.document, &laid_out, input);
+
+        if let Some(NodeValue::Text(name)) = self.document.value("namn") {
+            self.new_name = name;
+        }
+
+        let mut chosen = None;
+        for id in &events.clicked {
+            if id == "skapa" {
+                match project::create(&self.projects_dir, &self.new_name.clone()) {
+                    Ok(handle) => {
+                        self.status = format!("skapade {}", handle.project.name);
+                        self.new_name.clear();
+                        self.refresh();
+                        // Öppna direkt – man vill alltid in i projektet
+                        // man just skapat.
+                        chosen = Some(handle);
+                    }
+                    Err(err) => self.status = format!("{err}"),
+                }
+            } else if let Some(index) = id
+                .strip_prefix("oppna/")
+                .and_then(|i| i.parse::<usize>().ok())
+            {
+                chosen = self.projects.get(index).cloned();
+            }
+        }
+
+        let previous = std::mem::replace(&mut self.document, Document::new(Node::panel()));
+        self.document = self.build();
+        self.document.carry_view_state_from(&previous);
+
+        let laid_out = layout(&self.document, window, text);
+        let list = draw_with(&self.document, &laid_out, &self.ui, text);
+        (list, chosen)
+    }
+
+    fn build(&self) -> Document {
+        let theme = &self.theme;
+
+        let rows: Vec<Node> = if self.projects.is_empty() {
+            vec![Node::label("Inga projekt än. Skapa ett nedan.").with_style(theme.dim_label())]
+        } else {
+            self.projects
+                .iter()
+                .enumerate()
+                .map(|(index, handle)| {
+                    Node::panel()
+                        .with_style(
+                            Style::row()
+                                .with_size(Size::Fill, Size::Fixed(52.0))
+                                .with_padding(Edges::all(10.0))
+                                .with_gap(10.0)
+                                .with_align(Align::Center)
+                                .with_background(theme.panel)
+                                .with_radius(4.0),
+                        )
+                        .with_children([
+                            Node::panel()
+                                .with_style(Style::column().with_gap(2.0))
+                                .with_children([
+                                    Node::label(&handle.project.name)
+                                        .with_style(theme.label().with_font_size(16.0)),
+                                    Node::label(handle.root.display().to_string())
+                                        .with_style(theme.dim_label()),
+                                ]),
+                            Node::spacer().with_style(
+                                Style::default().with_size(Size::Fill, Size::Fixed(1.0)),
+                            ),
+                            Node::button(format!("oppna/{index}"), "Öppna")
+                                .with_style(theme.button().with_background(theme.accent)),
+                        ])
+                })
+                .collect()
+        };
+
+        Document::new(
+            Node::panel()
+                .with_id("rot")
+                .with_style(
+                    Style::column()
+                        .with_size(Size::Fill, Size::Fill)
+                        .with_padding(Edges::all(20.0))
+                        .with_gap(12.0)
+                        .with_background(theme.well),
+                )
+                .with_children([
+                    Node::label("Projekt").with_style(theme.label().with_font_size(22.0)),
+                    Node::label(self.projects_dir.display().to_string())
+                        .with_style(theme.dim_label()),
+                    Node::scroll("lista")
+                        .with_style(
+                            Style::column()
+                                .with_size(Size::Fill, Size::Fill)
+                                .with_gap(8.0)
+                                .with_clip(true),
+                        )
+                        .with_children(rows),
+                    Node::panel()
+                        .with_style(
+                            Style::row()
+                                .with_size(Size::Fill, Size::Fixed(30.0))
+                                .with_gap(10.0)
+                                .with_align(Align::Center),
+                        )
+                        .with_children([
+                            Node::text_input("namn", &self.new_name)
+                                .with_placeholder("nytt projektnamn")
+                                .with_style(theme.field(Size::Fixed(260.0))),
+                            Node::button("skapa", "Skapa projekt")
+                                .with_style(theme.button().with_background(theme.accent)),
+                            Node::spacer().with_style(
+                                Style::default().with_size(Size::Fill, Size::Fixed(1.0)),
+                            ),
+                            Node::label(&self.status).with_style(theme.dim_label()),
+                        ]),
+                ]),
+        )
+    }
 }

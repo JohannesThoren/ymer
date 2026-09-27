@@ -35,15 +35,17 @@
 
 mod fields;
 mod theme;
+mod winit_input;
 
 use bevy_ecs::prelude::*;
 use ymer_scene::TypeRegistry;
 use ymer_ui::prelude::*;
-use ymer_ui::{Input, State};
+use ymer_ui::{Input, LaidOut, State};
 
 use crate::{Action, EditorState, collect_hierarchy};
 
 pub use theme::Theme;
+pub use winit_input::InputPump;
 
 /// Editorns gränssnitt mellan frames.
 pub struct Chrome {
@@ -58,6 +60,8 @@ pub struct Chrome {
     bottom: f32,
     /// Hålet i mitten, som layouten gav det. Se [`Chrome::viewport`].
     scene: Rect,
+    /// Förra framens layout, för [`Chrome::over_ui`].
+    laid_out: LaidOut,
 }
 
 impl Default for Chrome {
@@ -76,6 +80,7 @@ impl Chrome {
             right: 340.0,
             bottom: 190.0,
             scene: Rect::new(0.0, 0.0, 0.0, 0.0),
+            laid_out: LaidOut::default(),
         }
     }
 
@@ -129,7 +134,10 @@ impl Chrome {
         //    annorlunda ut, vilket är just därför trädet byggs om.
         crate::apply_actions(actions, editor, world, registry);
 
-        // 5. Nytt träd ur den nya världen.
+        // 5. Nytt träd ur den nya världen. Rålägets textrutor behöver
+        //    en text att visa innan någon skrivit något; den hämtas ur
+        //    komponenten och bryts upp så den går att läsa.
+        seed_drafts(editor, world, registry);
         let previous = std::mem::replace(&mut self.document, Document::new(Node::panel()));
         self.document = self.build(editor, world, registry);
         self.document.carry_view_state_from(&previous);
@@ -139,12 +147,25 @@ impl Chrome {
         let laid_out = layout(&self.document, window, text);
         self.scene = laid_out.rect("scen").unwrap_or(window);
         let list = draw_with(&self.document, &laid_out, &self.state, text);
+        self.laid_out = laid_out;
 
         Frame {
             list,
             pointer_over_ui: events.pointer_over_ui,
             keyboard_captured: events.keyboard_captured,
         }
+    }
+
+    /// Hör punkten till gränssnittet?
+    ///
+    /// Frågas av fönstret när ett musklick kommer in, innan framen körs.
+    /// Att i stället lita på förra framens svar hade räckt nästan alltid
+    /// – och missat just det klick som kommer i samma frame som pekaren
+    /// gled in över en panel, vilket är precis det klick som skjuter i
+    /// scenen bakom knappen man siktade på.
+    pub fn over_ui(&self, point: Vec2) -> bool {
+        !self.laid_out.nodes.is_empty()
+            && ymer_ui::hit_test(&self.document, &self.laid_out, point).is_some()
     }
 
     fn read_splits(&mut self) {
@@ -204,6 +225,28 @@ pub(crate) fn components(
         }
     }
     (present, missing)
+}
+
+/// Fyller rålägets buffertar för den markerade entiteten.
+///
+/// Bara de som saknas: en buffert man redan skriver i ska inte skrivas
+/// över av världen mitt i meningen.
+fn seed_drafts(editor: &mut EditorState, world: &World, registry: &TypeRegistry) {
+    if !editor.raw_mode {
+        return;
+    }
+    let Some(entity) = editor.selected.filter(|e| world.entities().contains(*e)) else {
+        return;
+    };
+    for component in registry.iter() {
+        let Some(value) = component.read(world, entity) else {
+            continue;
+        };
+        editor
+            .drafts
+            .entry((entity, component.name.to_string()))
+            .or_insert_with(|| crate::pretty(value.get_ron()));
+    }
 }
 
 /// Kommandon `read_events` och `read_back` samlar ihop.

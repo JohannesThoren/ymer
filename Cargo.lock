@@ -6145,10 +6145,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bevy_ecs",
- "egui",
- "egui-wgpu",
- "egui-winit",
  "env_logger",
+ "image",
  "log",
  "pollster",
  "ron",

@@ -14,18 +14,25 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 use ymer_core::{GlobalTransform, Input, MeshId, Time, Vec3};
 use ymer_editor::browser::FileBrowser;
+use ymer_editor::chrome::{Chrome, InputPump};
 use ymer_editor::gizmo::{self, Drag};
-use ymer_editor::launcher::{self, LauncherState};
+use ymer_editor::launcher::LauncherState;
 use ymer_editor::project::{self, ProjectHandle};
 use ymer_editor::view::EditorCamera;
-use ymer_editor::{EditorState, EguiOverlay, PlayMode, run_ui};
+use ymer_editor::{EditorState, PlayMode};
 use ymer_render::{Assets, Renderer};
+use ymer_runtime::ui_backend::UiBackend;
 use ymer_runtime::{Update, build_render_list_with_view};
 use ymer_scene::{Scene, TypeRegistry, clear_scene, register_builtin_types};
+use ymer_ui::{FontAtlas, Rect};
 
 /// Var script_host.wasm ligger. Den hör till motorn, inte till projektet.
 const SCRIPT_HOST: &str = "assets/script_host.wasm";
 const PROJECTS_DIR: &str = "projects";
+/// Typsnittet editorn ritar med. Följer med motorn i stället för att
+/// letas upp i systemet: en editor som ser olika ut på olika maskiner –
+/// eller inte startar för att ingen fil hittades – är inte ett verktyg.
+const FONT: &str = "assets/fonts/DejaVuSans.ttf";
 
 enum Mode {
     Launcher,
@@ -39,9 +46,10 @@ struct Editor {
     schedule: Schedule,
     registry: TypeRegistry,
     state: EditorState,
-    egui_ctx: egui::Context,
-    egui_winit: Option<egui_winit::State>,
-    overlay: Option<EguiOverlay>,
+    /// Editorns gränssnitt, och bryggan som ritar det.
+    chrome: Chrome,
+    input: InputPump,
+    ui: Option<UiBackend>,
     renderer: Option<Renderer>,
     window: Option<Arc<Window>>,
     assets: Assets,
@@ -55,6 +63,9 @@ struct Editor {
     modifiers: winit::keyboard::ModifiersState,
     play: Option<PlayMode>,
     was_playing: bool,
+    /// Ett fält i gränssnittet har tangentbordet. Genvägar ska då tiga –
+    /// annars raderas entiteter medan man skriver i ett namnfält.
+    keyboard_captured: bool,
 }
 
 impl Editor {
@@ -74,9 +85,9 @@ impl Editor {
             schedule: Schedule::new(Update),
             registry,
             state: EditorState::default(),
-            egui_ctx: egui::Context::default(),
-            egui_winit: None,
-            overlay: None,
+            chrome: Chrome::new(),
+            input: InputPump::new(),
+            ui: None,
             renderer: None,
             window: None,
             assets: Assets::default(),
@@ -89,6 +100,7 @@ impl Editor {
             modifiers: winit::keyboard::ModifiersState::empty(),
             play: None,
             was_playing: false,
+            keyboard_captured: false,
         }
     }
 
@@ -212,19 +224,14 @@ impl ApplicationHandler for Editor {
         self.assets = Assets::new(&mut renderer);
         self.gizmo_mesh = self.assets.mesh(ymer_core::BUILTIN_CUBE);
 
-        self.egui_ctx.set_visuals(egui::Visuals::dark());
-        self.egui_winit = Some(egui_winit::State::new(
-            self.egui_ctx.clone(),
-            egui::ViewportId::ROOT,
-            &window,
-            None,
-            None,
-            None,
-        ));
-        self.overlay = Some(EguiOverlay::new(
-            renderer.device(),
-            renderer.output_format(),
-        ));
+        match load_font() {
+            Ok(atlas) => self.ui = Some(UiBackend::new(atlas, &mut renderer, &self.assets)),
+            Err(err) => {
+                log::error!("kunde inte läsa typsnittet: {err:#}");
+                event_loop.exit();
+                return;
+            }
+        }
         self.renderer = Some(renderer);
         self.window = Some(window);
 
@@ -241,10 +248,12 @@ impl ApplicationHandler for Editor {
         let Some(window) = self.window.clone() else {
             return;
         };
-        let response = match self.egui_winit.as_mut() {
-            Some(state) => state.on_window_event(&window, &event),
-            None => return,
-        };
+        let scale = window.scale_factor() as f32;
+        self.input.accept(&event, scale);
+        // Gränssnittet svarar på förra framens träd, men på pekarens
+        // *nuvarande* läge – annars missas just det klick som kommer i
+        // samma frame som pekaren gled in över en panel.
+        let over_ui = self.chrome.over_ui(self.input.position());
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -306,9 +315,9 @@ impl ApplicationHandler for Editor {
                     }
                 }
 
-                // Editorgenvägar. Hoppas över när egui har fokus, annars
-                // raderas entiteter medan man skriver i ett textfält.
-                let typing = response.consumed || self.egui_ctx.egui_wants_keyboard_input();
+                // Editorgenvägar. Hoppas över när ett fält har fokus,
+                // annars raderas entiteter medan man skriver i det.
+                let typing = self.keyboard_captured;
                 if event.state == ElementState::Pressed
                     && !typing
                     && let winit::keyboard::PhysicalKey::Code(code) = event.physical_key
@@ -348,7 +357,9 @@ impl ApplicationHandler for Editor {
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
-                if !response.consumed {
+                // Hjulet går till listan under pekaren om det finns en;
+                // annars zoomar kameran.
+                if !over_ui {
                     let scroll = match delta {
                         winit::event::MouseScrollDelta::LineDelta(_, y) => y,
                         winit::event::MouseScrollDelta::PixelDelta(position) => {
@@ -360,8 +371,6 @@ impl ApplicationHandler for Editor {
             }
 
             WindowEvent::MouseInput { state, button, .. } => {
-                let over_ui = response.consumed;
-
                 // Höger orbit, mitten panorering – samma konvention som
                 // Blender och Unity, så att handen vet vad den gör.
                 match (state, button) {
@@ -432,26 +441,25 @@ impl ApplicationHandler for Editor {
             }
 
             WindowEvent::RedrawRequested => {
-                let (Some(renderer), Some(overlay)) = (&mut self.renderer, &mut self.overlay)
-                else {
+                let (Some(renderer), Some(ui)) = (&mut self.renderer, &mut self.ui) else {
                     return;
                 };
-                let Some(egui_winit) = self.egui_winit.as_mut() else {
-                    return;
-                };
-                let raw_input = egui_winit.take_egui_input(&window);
+                let input = self.input.take();
+                let (width, height) = renderer.size();
+                let scale = window.scale_factor() as f32;
+                let window_rect = Rect::new(0.0, 0.0, width as f32 / scale, height as f32 / scale);
 
                 self.world.resource_mut::<Time>().tick();
                 let dt = self.world.resource::<Time>().delta_seconds();
 
                 let mut opened: Option<ProjectHandle> = None;
 
-                let mut output = match self.mode {
+                let commands = match self.mode {
                     Mode::Launcher => {
-                        let (output, chosen) =
-                            launcher::run_ui(&self.egui_ctx, raw_input, &mut self.launcher);
+                        let (list, chosen) = self.launcher.frame(&input, window_rect, ui.atlas());
                         opened = chosen;
-                        output
+                        self.keyboard_captured = false;
+                        list
                     }
                     Mode::Editing => {
                         if self.state.playing != self.was_playing {
@@ -497,25 +505,23 @@ impl ApplicationHandler for Editor {
                         ymer_core::propagate_transforms(&mut self.world);
                         self.world.resource_mut::<Input>().end_frame();
 
-                        run_ui(
-                            &self.egui_ctx,
-                            raw_input,
+                        // Listorna över skript och texturer läses om en
+                        // gång per frame; inspektorn behöver dem för
+                        // fälten som pekar ut filer.
+                        self.state.refresh_assets();
+
+                        let frame = self.chrome.frame(
+                            &input,
+                            window_rect,
                             &mut self.state,
                             &mut self.world,
                             &self.registry,
-                        )
+                            ui.atlas(),
+                        );
+                        self.keyboard_captured = frame.keyboard_captured;
+                        frame.list
                     }
                 };
-
-                if let Some(egui_winit) = self.egui_winit.as_mut() {
-                    egui_winit.handle_platform_output(
-                        &window,
-                        std::mem::take(&mut output.platform_output),
-                    );
-                }
-
-                let size = renderer.size();
-                overlay.accept(&self.egui_ctx, output, size);
 
                 let mut list = match self.mode {
                     Mode::Launcher => ymer_render::RenderList::default(),
@@ -558,7 +564,13 @@ impl ApplicationHandler for Editor {
                     );
                 }
 
-                if let Err(err) = renderer.render_with_overlay(&list, Some(overlay)) {
+                // Ordningen är inte fri: `build` rastrerar framens
+                // glyfer, `upload` skickar atlasen. Tvärtom ritas varje
+                // tecken som tomrum första gången det används.
+                list.ui_items = ui.build(&commands, &self.assets);
+                ui.upload(renderer);
+
+                if let Err(err) = renderer.render(&list) {
                     log::error!("renderfel: {err}");
                     event_loop.exit();
                 }
@@ -571,9 +583,7 @@ impl ApplicationHandler for Editor {
             _ => {}
         }
 
-        if response.repaint {
-            window.request_redraw();
-        }
+        window.request_redraw();
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
@@ -620,6 +630,14 @@ fn find_models(root: &Path) -> Vec<std::path::PathBuf> {
     walk(root, &mut found);
     found.sort();
     found
+}
+
+/// Läser typsnittet motorn följs åt med.
+fn load_font() -> anyhow::Result<FontAtlas> {
+    let bytes = std::fs::read(FONT)
+        .map_err(|err| anyhow::anyhow!("{FONT}: {err} (kör editorn från repots rot)"))?;
+    // 1024² räcker till latin-1 i editorns storlekar med god marginal.
+    FontAtlas::from_font_bytes(bytes, 1024, 1024).map_err(|err| anyhow::anyhow!("{err}"))
 }
 
 fn is_gltf(path: &std::path::Path) -> bool {
