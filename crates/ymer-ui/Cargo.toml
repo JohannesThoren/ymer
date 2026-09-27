@@ -1,0 +1,20 @@
+[package]
+name = "ymer-ui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description = "Retained-mode gränssnitt som data. Fristående: beror inte på någon annan del av Ymer."
+
+[features]
+default = ["text"]
+# Textmätning och glyfatlas. Utan den går layouten ändå att köra med en
+# egen `TextMeasure`, vilket testerna utnyttjar.
+text = ["dep:ab_glyph"]
+
+[dependencies]
+serde = { workspace = true }
+ab_glyph = { version = "0.2", optional = true }
+
+[dev-dependencies]
+ron = { workspace = true }

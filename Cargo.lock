@@ -6261,6 +6261,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymer-ui"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "yoke"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
