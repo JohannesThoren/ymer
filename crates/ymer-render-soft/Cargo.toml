@@ -1,0 +1,18 @@
+[package]
+name = "ymer-render-soft"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description = "Mjukvarurenderare för RenderList. Ingen GPU, inget wgpu – formen en konsolbackend har."
+
+[dependencies]
+ymer-core = { workspace = true }
+ymer-gfx = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+image = { workspace = true }
+# Bara för jämförelseexemplet: mjukvarurenderaren själv rör aldrig wgpu.
+ymer-render = { workspace = true }
+pollster = { workspace = true }

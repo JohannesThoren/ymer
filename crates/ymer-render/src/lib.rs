@@ -6,7 +6,14 @@ use std::sync::Arc;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
-use ymer_core::{Color, Mat4, MeshId, TextureId, Vec3};
+use ymer_core::{Mat4, MeshId, TextureId, Vec3};
+use ymer_gfx::Backend;
+
+// Ordförrådet bor i `ymer-gfx` men återexporteras här, så att allt som
+// redan säger `ymer_render::RenderList` fortsätter göra det. Den som
+// skriver en ny backend tar dem från `ymer-gfx` i stället och slipper
+// dra in wgpu för att få tag på en matris.
+pub use ymer_gfx::{self, DrawItem, MeshData, RenderList, Vertex};
 
 pub mod assets;
 pub mod egui_overlay;
@@ -21,32 +28,23 @@ pub const OFFSCREEN_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unor
 
 // ------------------------------------------------------------ mesh-data
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
-    pub uv: [f32; 2],
+/// Vertexlayouten för wgpu. Själva typen bor i `ymer-gfx`; bara
+/// beskrivningen av hur den ser ut för den här GPU:n hör hemma här.
+const VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 7 => Float32x2];
+
+trait VertexLayout {
+    fn layout() -> wgpu::VertexBufferLayout<'static>;
 }
 
-impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 7 => Float32x2];
-
+impl VertexLayout for Vertex {
     fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBUTES,
+            attributes: &VERTEX_ATTRIBUTES,
         }
     }
-}
-
-/// Mesh i RAM, innan den laddats upp.
-#[derive(Debug, Clone, Default)]
-pub struct MeshData {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
 }
 
 pub struct GpuMesh {
@@ -101,122 +99,9 @@ impl MeshRegistry {
     }
 }
 
-pub mod primitives {
-    use super::{MeshData, Vertex};
-
-    /// Kub med hårda kanter: varje sida har egna hörn så normalerna blir platta.
-    pub fn cube(size: f32) -> MeshData {
-        let h = size * 0.5;
-        let faces: [([f32; 3], [[f32; 3]; 4]); 6] = [
-            (
-                [0.0, 0.0, 1.0],
-                [[-h, -h, h], [h, -h, h], [h, h, h], [-h, h, h]],
-            ),
-            (
-                [0.0, 0.0, -1.0],
-                [[h, -h, -h], [-h, -h, -h], [-h, h, -h], [h, h, -h]],
-            ),
-            (
-                [1.0, 0.0, 0.0],
-                [[h, -h, h], [h, -h, -h], [h, h, -h], [h, h, h]],
-            ),
-            (
-                [-1.0, 0.0, 0.0],
-                [[-h, -h, -h], [-h, -h, h], [-h, h, h], [-h, h, -h]],
-            ),
-            (
-                [0.0, 1.0, 0.0],
-                [[-h, h, h], [h, h, h], [h, h, -h], [-h, h, -h]],
-            ),
-            (
-                [0.0, -1.0, 0.0],
-                [[-h, -h, -h], [h, -h, -h], [h, -h, h], [-h, -h, h]],
-            ),
-        ];
-
-        // Varje sida får hela UV-rutan, så en textur syns en gång per sida.
-        const UVS: [[f32; 2]; 4] = [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]];
-
-        let mut data = MeshData::default();
-        for (normal, corners) in faces {
-            let base = data.vertices.len() as u32;
-            for (index, position) in corners.into_iter().enumerate() {
-                data.vertices.push(Vertex {
-                    position,
-                    normal,
-                    uv: UVS[index],
-                });
-            }
-            data.indices
-                .extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
-        }
-        data
-    }
-
-    /// Kvadrat i XY-planet, normal mot +Z. Basen för alla sprites.
-    pub fn quad(size: f32) -> MeshData {
-        let h = size * 0.5;
-        let normal = [0.0, 0.0, 1.0];
-        MeshData {
-            vertices: vec![
-                Vertex {
-                    position: [-h, -h, 0.0],
-                    normal,
-                    uv: [0.0, 1.0],
-                },
-                Vertex {
-                    position: [h, -h, 0.0],
-                    normal,
-                    uv: [1.0, 1.0],
-                },
-                Vertex {
-                    position: [h, h, 0.0],
-                    normal,
-                    uv: [1.0, 0.0],
-                },
-                Vertex {
-                    position: [-h, h, 0.0],
-                    normal,
-                    uv: [0.0, 0.0],
-                },
-            ],
-            indices: vec![0, 1, 2, 0, 2, 3],
-        }
-    }
-
-    /// Plan i XZ-planet, normal uppåt. UV:erna upprepas per enhet så att
-    /// en textur kaklar istället för att sträckas över hela ytan.
-    pub fn plane(size: f32) -> MeshData {
-        let h = size * 0.5;
-        let normal = [0.0, 1.0, 0.0];
-        let tiles = size;
-        MeshData {
-            vertices: vec![
-                Vertex {
-                    position: [-h, 0.0, h],
-                    normal,
-                    uv: [0.0, tiles],
-                },
-                Vertex {
-                    position: [h, 0.0, h],
-                    normal,
-                    uv: [tiles, tiles],
-                },
-                Vertex {
-                    position: [h, 0.0, -h],
-                    normal,
-                    uv: [tiles, 0.0],
-                },
-                Vertex {
-                    position: [-h, 0.0, -h],
-                    normal,
-                    uv: [0.0, 0.0],
-                },
-            ],
-            indices: vec![0, 1, 2, 0, 2, 3],
-        }
-    }
-}
+// `primitives` bor i `ymer-gfx`: de är ren meshdata och behövs av
+// varje backend, inte bara den här.
+pub use ymer_gfx::primitives;
 
 /// Texturer plus deras bindgrupper. Id 0 är en vit 1x1-pixel, så att
 /// otexturerade objekt kan gå genom exakt samma pipeline.
@@ -245,64 +130,35 @@ impl TextureRegistry {
 
 // ----------------------------------------------------------- renderlista
 
-/// En sak att rita den här framen.
-#[derive(Debug, Clone, Copy)]
-pub struct DrawItem {
-    pub mesh: MeshId,
-    pub texture: TextureId,
-    pub transform: Mat4,
-    pub color: Color,
-    /// `[offset_x, offset_y, scale_x, scale_y]` – väljer ut en ruta ur ett
-    /// spritesheet. `[0, 0, 1, 1]` betyder hela texturen.
-    pub uv_transform: [f32; 4],
-}
-
-impl DrawItem {
-    /// Ritobjekt som använder hela texturen – 3D-fallet.
-    pub fn new(mesh: MeshId, texture: TextureId, transform: Mat4, color: Color) -> Self {
-        Self {
-            mesh,
-            texture,
-            transform,
-            color,
-            uv_transform: [0.0, 0.0, 1.0, 1.0],
-        }
+/// wgpu-backenden, sedd genom den gräns alla backends delar.
+///
+/// Tunn med flit: `Renderer` kunde redan allt det här. Poängen med
+/// traiten är inte vad den lägger till utan vad den *tar bort* — efter
+/// den kan runtime och editor skrivas mot `Backend` i stället för mot
+/// wgpu, och då finns det plats för en andra implementation.
+impl Backend for Renderer {
+    fn add_mesh(&mut self, data: &MeshData, _label: &str) -> MeshId {
+        Renderer::add_mesh(self, data)
     }
-}
 
-/// Allt renderaren behöver för en frame. Byggs av runtime ur ECS-världen.
-#[derive(Debug, Clone)]
-pub struct RenderList {
-    pub view_proj: Mat4,
-    pub light_dir: Vec3,
-    pub clear_color: Color,
-    pub items: Vec<DrawItem>,
-    /// Genomskinliga objekt: ritas efter all ogenomskinlig geometri, med
-    /// djuptest men utan djupskrivning, och i den ordning listan har.
-    /// `build_render_list` sorterar bakifrån och fram.
-    pub sprite_items: Vec<DrawItem>,
-    /// Ritas sist utan djuptest – gizmos och annat som alltid ska synas.
-    pub overlay_items: Vec<DrawItem>,
-    /// Gränssnitt i *skärmrymd*: transformen tolkas som pixlar med origo
-    /// uppe till vänster, inte som en plats i världen.
-    ///
-    /// Egen lista och inte `overlay_items`, för de två kan inte dela
-    /// kamera. Ett gizmo ska följa med när man vrider vyn; en knapp ska
-    /// ligga still.
-    pub ui_items: Vec<DrawItem>,
-}
+    fn add_texture(&mut self, rgba: &[u8], width: u32, height: u32, label: &str) -> TextureId {
+        Renderer::add_texture(self, rgba, width, height, label)
+    }
 
-impl Default for RenderList {
-    fn default() -> Self {
-        Self {
-            view_proj: Mat4::IDENTITY,
-            light_dir: Vec3::new(-0.4, -1.0, -0.35).normalize(),
-            clear_color: Color::rgb(0.02, 0.02, 0.03),
-            items: Vec::new(),
-            sprite_items: Vec::new(),
-            overlay_items: Vec::new(),
-            ui_items: Vec::new(),
-        }
+    fn update_texture(&mut self, id: TextureId, rgba: &[u8], width: u32, height: u32) -> bool {
+        Renderer::update_texture(self, id, rgba, width, height)
+    }
+
+    fn half_extents(&self, mesh: MeshId) -> Option<Vec3> {
+        self.meshes.half_extents(mesh)
+    }
+
+    fn render(&mut self, list: &RenderList) -> anyhow::Result<()> {
+        Renderer::render(self, list).map_err(anyhow::Error::from)
+    }
+
+    fn size(&self) -> (u32, u32) {
+        Renderer::size(self)
     }
 }
 

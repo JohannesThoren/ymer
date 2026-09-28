@@ -6164,6 +6164,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymer-gfx"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "ymer-core",
+]
+
+[[package]]
 name = "ymer-pak"
 version = "0.1.0"
 dependencies = [
@@ -6208,6 +6217,19 @@ dependencies = [
  "wgpu",
  "winit",
  "ymer-core",
+ "ymer-gfx",
+]
+
+[[package]]
+name = "ymer-render-soft"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "image",
+ "pollster",
+ "ymer-core",
+ "ymer-gfx",
+ "ymer-render",
 ]
 
 [[package]]

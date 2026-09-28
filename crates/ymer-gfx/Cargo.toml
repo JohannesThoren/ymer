@@ -1,0 +1,12 @@
+[package]
+name = "ymer-gfx"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description = "Renderarens ordförråd, utan renderare. Det enda både wgpu-backenden och en konsolbackend behöver vara överens om."
+
+[dependencies]
+ymer-core = { workspace = true }
+bytemuck = { workspace = true }
+anyhow = { workspace = true }
