@@ -1,0 +1,10 @@
+[package]
+name = "ymer-pica"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license-file.workspace = true
+description = "PICA200-specifika dataomvandlingar: texturtiling, matrisordning, indexsmalning. Ren aritmetik, ingen libctru – går att testa på skrivbordet."
+
+[dependencies]
+ymer-core = { workspace = true }

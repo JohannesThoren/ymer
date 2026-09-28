@@ -1,0 +1,86 @@
+; Ymers vertexshader för PICA200.
+;
+; Den gör mer än en vertexshader brukar, och skälet är att den måste.
+; PICA200 har ingen fragment-shader — bara en fast texturkombinator med
+; sex steg. Ljussättningen som motorn räknar per pixel i WGSL kan alltså
+; inte räknas per pixel här. Den flyttar hit, till per vertex, och
+; resultatet skickas vidare som vertexfärg. Kombinatorn multiplicerar
+; sedan ihop textur och färg.
+;
+; Skillnaden mot skrivbordsrenderaren är Gouraud mot Phong. På en kub med
+; hårda kanter är de identiska, för varje sida har egna hörn med samma
+; normal. På en mjukt skuggad mesh syns skillnaden — ljuset bryts vid
+; hörnen i stället för att löpa jämnt. Det är priset hårdvaran tar.
+;
+; Formeln är densamma som `ymer_gfx::shade`:
+;
+;     diffuse = max(dot(n, to_light), 0)
+;     sky     = 0.5 + 0.5 * n.y
+;     light   = 0.18 * sky + 0.82 * diffuse
+;             = 0.09 + 0.09 * n.y + 0.82 * diffuse
+;
+; Den sista raden är den som står i koden nedan, för den sparar en
+; multiplikation. Ändras `shade` måste den ändras här också — det finns
+; ingen delad källa, och det är den dubbleringen som kostar mest i den
+; här filen.
+
+; --- uniformer ---------------------------------------------------------
+; Alla tre är fyra register breda, även där bara en rad används. Det
+; kostar register vi har gott om (96 stycken) och köper att varje
+; uniform binds på exakt samma sätt från Rust-sidan — en matris in. Med
+; blandade bredder måste den som binder veta vilken sort varje uniform
+; är, och det är precis den sortens detalj som går sönder tyst.
+.fvec mvp[4]            ; modell * vy * projektion
+.fvec model[4]          ; modellens rotation och skala; rad 3 oanvänd
+.fvec params[4]         ; rad 0 = riktning mot ljuset, rad 1 = materialfärg
+
+; --- konstanter --------------------------------------------------------
+;   x = 0.09  (himmelstermen)
+;   y = 0.82  (den riktade termen)
+;   z = 0.0   (för max mot noll)
+;   w = 1.0
+.constf konstanter(0.09, 0.82, 0.0, 1.0)
+
+; --- in och ut ---------------------------------------------------------
+.alias inpos v0
+.alias innrm v1
+.alias inuv  v2
+
+.out outpos position
+.out outclr color
+.out outuv  texcoord0
+
+.proc main
+    ; Position. Attributladdaren ger v0 = (x, y, z, 1), så dp4 duger.
+    dp4 outpos.x, mvp[0], inpos
+    dp4 outpos.y, mvp[1], inpos
+    dp4 outpos.z, mvp[2], inpos
+    dp4 outpos.w, mvp[3], inpos
+
+    ; Normalen till världsrymd. Bara rotation och skala, ingen flytt.
+    dp3 r0.x, model[0], innrm
+    dp3 r0.y, model[1], innrm
+    dp3 r0.z, model[2], innrm
+
+    ; Normalisera. Skalade objekt ger annars ljus som beror på storleken.
+    dp3 r1.x, r0, r0
+    rsq r1.x, r1.x
+    mul r0.xyz, r1.xxx, r0
+
+    ; diffuse = max(dot(n, to_light), 0)
+    dp3 r2.x, r0, params[0]
+    max r2.x, r2.x, konstanter.zzzz
+
+    ; light = 0.09 * (1 + n.y) + 0.82 * diffuse
+    add r3.x, konstanter.wwww, r0.yyyy
+    mul r3.x, konstanter.xxxx, r3.x
+    mad r3.x, konstanter.yyyy, r2.x, r3.x
+
+    ; Färgen ut: materialet dämpat av ljuset. Alfan lämnas orörd — ett
+    ; halvgenomskinligt objekt ska inte bli mer genomskinligt i skuggan.
+    mul outclr, r3.xxxx, params[1]
+    mov outclr.w, params[1].w
+
+    mov outuv, inuv
+    end
+.end

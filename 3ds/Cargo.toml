@@ -1,0 +1,25 @@
+# Eget workspace, som scripthost. Motorns skrivbordsbygge ska inte
+# behöva känna till en tier-3-plattform, och `cargo test --workspace`
+# på en x86-maskin ska inte försöka bygga libctru.
+[workspace]
+
+[package]
+name = "ymer-3ds"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Motorns delade ordförråd. Ingenting här drar in wgpu.
+ymer-core = { path = "../crates/ymer-core" }
+ymer-gfx = { path = "../crates/ymer-gfx" }
+
+ctru-rs = "0.7"
+citro3d = { git = "https://github.com/rust3ds/citro3d-rs.git" }
+citro3d-macros = { git = "https://github.com/rust3ds/citro3d-rs.git" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+
+[package.metadata.cargo-3ds]
+romfs_dir = "romfs"

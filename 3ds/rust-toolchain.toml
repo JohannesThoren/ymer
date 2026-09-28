@@ -1,0 +1,6 @@
+# armv6k-nintendo-3ds är ett tier 3-mål: det finns ingen färdigbyggd
+# std, så den byggs ur källkoden med -Z build-std. Det kräver nightly
+# och komponenten rust-src.
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "rustfmt", "clippy"]

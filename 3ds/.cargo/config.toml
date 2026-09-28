@@ -1,0 +1,6 @@
+[build]
+target = "armv6k-nintendo-3ds"
+
+[unstable]
+build-std = ["std", "panic_abort"]
+build-std-features = ["compiler-builtins-mem"]

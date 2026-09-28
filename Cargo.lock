@@ -6184,6 +6184,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ymer-pica"
+version = "0.1.0"
+dependencies = [
+ "ymer-core",
+]
+
+[[package]]
 name = "ymer-play"
 version = "0.1.0"
 dependencies = [

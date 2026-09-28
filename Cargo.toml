@@ -16,6 +16,7 @@ ymer-render = { path = "crates/ymer-render" }
 ymer-runtime = { path = "crates/ymer-runtime" }
 ymer-scene = { path = "crates/ymer-scene" }
 ymer-gfx = { path = "crates/ymer-gfx" }
+ymer-pica = { path = "crates/ymer-pica" }
 ymer-render-soft = { path = "crates/ymer-render-soft" }
 ymer-ui = { path = "crates/ymer-ui" }
 ymer-editor = { path = "crates/ymer-editor" }
