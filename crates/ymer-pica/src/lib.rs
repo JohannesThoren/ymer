@@ -216,7 +216,12 @@ mod tests {
         }
         let tiled = tile_rgba8(&src, 8, 8).unwrap();
 
-        let mut found: Vec<u8> = tiled.chunks_exact(4).map(|texel| texel[3]).collect();
+        let mut found: Vec<u8> = tiled
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|texel| texel[3])
+            .collect();
         found.sort_unstable();
         assert_eq!(found, (0..64u8).collect::<Vec<_>>());
     }
@@ -233,7 +238,7 @@ mod tests {
         // 16x8 = två brickor. Texeln på (8,0) är första i bricka två,
         // alltså byte 64*4 i utdatan.
         let mut src = vec![0u8; 16 * 8 * 4];
-        let index = (0 * 16 + 8) * 4;
+        let index = 8 * 4;
         src[index] = 123;
         let tiled = tile_rgba8(&src, 16, 8).unwrap();
         assert_eq!(tiled[64 * 4 + 3], 123);
