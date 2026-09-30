@@ -6,5 +6,9 @@ authors.workspace = true
 license-file.workspace = true
 
 [dependencies]
-ymer-runtime = { workspace = true }
+# Sandboxen kör demoscenen, som ligger bakom en flagga i ymer-runtime.
+# Den måste begäras här: i ett workspace-bygge kan flaggan råka vara på
+# för att någon *annan* crate bett om den, och då bygger sandboxen ändå
+# — tills någon bygger den för sig.
+ymer-runtime = { workspace = true, features = ["demo"] }
 anyhow = { workspace = true }
