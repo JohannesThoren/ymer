@@ -63,22 +63,29 @@ laddas, med ett meddelande, i stället för att tyst tappa geometri.
 
 ## Oprövat
 
-Jag har inte kunnat kompilera något av det här: devkitPro är blockerat
-från miljön koden skrevs i. Det som följer är alltså skrivet mot
-dokumentationen, inte mot en kompilator. Listan finns för att du ska veta
-var du ska titta först, inte som en ursäkt.
+Fortfarande inte kompilerat — devkitPro är blockerat från miljön koden
+skrevs i. Men API:t är sedan dess läst ur `rust3ds`-källkoden och inte
+bara ur dokumentationen, så listan är kortare än den var. Det som
+bekräftats: `Matrix4::from_rows` (tar `[FVec4; 4]`), `draw_elements`
+(kräver `Vec<I, LinearAllocator>`), `Info::add` (äger bufferten),
+`TextureParameters::new_2d`, `Face`, `texenv`-kedjan och
+`bind_vertex_uniform` (`From<&Matrix4>` finns).
 
 | Vad | Var | Varför osäkert |
 |---|---|---|
-| `Matrix4::from_rows` | `backend.rs`, funktionen `matrix` | Står inte i dokumentationen jag hittade. **Allt går genom den funktionen**, så finns konstruktorn under ett annat namn räcker det att rätta där. |
 | Skärmrotationen | `Screen::projection` och `Screen::ortho` | Jag lägger på ett kvarts varv för hand. citro3d har `ScreenOrientation` och `AspectRatio` som kanske gör det åt en — då blir bilden vriden två gånger. Syns direkt: scenen ligger på högkant. |
 | Djuptestet | hela `draw` | citro3d:s standardläge används. Motorn vill ha tre lägen (testa+skriv, bara testa, strunta i). Genomskinligt och gränssnitt kan därför hamna fel i djupled. |
 | UV:ns v-riktning | `ymer_pica::tile_rgba8` | Ingen vändning görs. Kommer texturerna upp och ner är det raden som skriver `out[to..]` som ska läsa `height - 1 - y`. |
 | Byteordningen ABGR | samma funktion | Dokumentationen säger `Rgba8`; hårdvaran lagrar ABGR. Är rött och blått utbytta är det de fyra raderna. |
 | Alfablandning | `draw` | Ingen blandning sätts upp. Listen i skärmrymd har alfa 0.85 och blir troligen ogenomskinlig. |
 
-Ordningen i tabellen är den jag skulle felsöka i. De två första avgör om
-något ritas alls; resten avgör om det ritas *rätt*.
+Ordningen i tabellen är den jag skulle felsöka i. Skärmrotationen avgör
+om något ritas alls; resten avgör om det ritas *rätt*.
+
+En sak till som inte går att veta utan hårdvara: shadern i
+`assets/ymer.v.pica` är skriven men aldrig assemblerad. `picasso` är
+noggrann med swizzles och registerbredder, så räkna med ett par
+rättningar där första gången.
 
 ## När det inte startar
 

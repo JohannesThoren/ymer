@@ -28,7 +28,7 @@ use std::collections::HashMap;
 use citro3d::attrib;
 use citro3d::buffer;
 use citro3d::macros::include_shader;
-use citro3d::math::Matrix4;
+use citro3d::math::{FVec4, Matrix4};
 use citro3d::render::Target;
 use citro3d::texenv;
 use citro3d::texture;
@@ -54,8 +54,7 @@ struct PicaVertex {
 }
 
 struct Mesh {
-    /// Hålls vid liv: buffertinfon pekar in i den här allokeringen.
-    _vertices: Vec<PicaVertex, LinearAllocator>,
+    /// Äger sin vertexbuffert; `Info::add` tar den och räknar referenser.
     info: buffer::Info,
     indices: Vec<u16, LinearAllocator>,
     half_extents: Vec3,
@@ -70,12 +69,14 @@ struct Uniforms {
 
 /// Bygger en citro3d-matris ur rader.
 ///
-/// **Den här funktionen är den enda raden i filen jag inte kunnat pröva
-/// mot ett riktigt citro3d.** `Matrix4::from_rows` står inte i den
-/// dokumentation jag hittade; finns den inte under det namnet är det
-/// här den ska rättas, och bara här. Allt annat går genom den.
+/// `Matrix4::from_rows` tar `[FVec4; 4]`, inte `[[f32; 4]; 4]` — därav
+/// omvägen. citro3d har också `From<glam::Mat4>` för uniformer, vilket
+/// hade tagit bort hela den här funktionen, men den binder glam 0.30.5
+/// medan motorn kör 0.33. Två olika `Mat4`-typer med samma namn, alltså,
+/// och den genvägen hade kopplat ihop motorns glam-version med
+/// citro3d:s. Det är inte värt en sparad rad.
 fn matrix(rows: [[f32; 4]; 4]) -> Matrix4 {
-    Matrix4::from_rows(rows)
+    Matrix4::from_rows(rows.map(|row| FVec4::new(row[0], row[1], row[2], row[3])))
 }
 
 /// Allt utom GPU-instansen.
@@ -304,26 +305,30 @@ impl Backend for Citro3dBackend {
             }
         };
 
-        let vertices: Vec<PicaVertex, LinearAllocator> = {
-            let mut out = Vec::with_capacity_in(data.vertices.len(), LinearAllocator);
-            out.extend(data.vertices.iter().map(|vertex| PicaVertex {
+        // `Buffer::new` kopierar själv in i linjärt minne, och `Info::add`
+        // tar bufferten och äger den. Alltså behövs ingen egen
+        // linjärallokering här — bara indexen måste ligga linjärt, för
+        // `draw_elements` kräver just `Vec<I, LinearAllocator>`.
+        let vertices: Vec<PicaVertex> = data
+            .vertices
+            .iter()
+            .map(|vertex| PicaVertex {
                 position: vertex.position,
                 normal: vertex.normal,
                 uv: vertex.uv,
-            }));
-            out
-        };
+            })
+            .collect();
 
         let mut linear_indices = Vec::with_capacity_in(indices.len(), LinearAllocator);
         linear_indices.extend_from_slice(&indices);
 
-        let vbo = buffer::Buffer::new(&vertices);
         let mut info = buffer::Info::new();
-        let _ = info.add(vbo, resources.attr_info.permutation());
+        let _ = info.add(
+            buffer::Buffer::new(&vertices),
+            resources.attr_info.permutation(),
+        );
 
         resources.meshes.push(Mesh {
-            // Vertexdatan måste överleva så länge buffertinfon gör det.
-            _vertices: vertices,
             info,
             indices: linear_indices,
             half_extents: data.half_extents(),

@@ -13,7 +13,9 @@ edition = "2024"
 ymer-core = { path = "../crates/ymer-core" }
 ymer-gfx = { path = "../crates/ymer-gfx" }
 
-ctru-rs = "0.7"
+# Ingen av dem finns på crates.io — rust3ds publicerar inte dit. Bara
+# `cargo-3ds` gör det, och den är ett verktyg och inte ett beroende.
+ctru-rs = { git = "https://github.com/rust3ds/ctru-rs.git" }
 citro3d = { git = "https://github.com/rust3ds/citro3d-rs.git" }
 citro3d-macros = { git = "https://github.com/rust3ds/citro3d-rs.git" }
 
