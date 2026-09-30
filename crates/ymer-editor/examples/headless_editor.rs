@@ -139,7 +139,13 @@ fn main() -> anyhow::Result<()> {
         .map_err(|err| anyhow::anyhow!(err))?;
     let mut ui = UiBackend::new(atlas, &mut renderer, &assets);
     let mut chrome = Chrome::new();
-    let window = ymer_ui::Rect::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32);
+    // Skalan som andra argument, så att näthinneskärmar går att pröva
+    // utan en näthinneskärm: layouten görs i punkter, målet är pixlar.
+    let scale: f32 = std::env::args()
+        .nth(2)
+        .and_then(|arg| arg.parse().ok())
+        .unwrap_or(1.0);
+    let window = ymer_ui::Rect::new(0.0, 0.0, WIDTH as f32 / scale, HEIGHT as f32 / scale);
 
     // Två frames: den första bygger trädet, den andra ritar det med allt
     // på plats. Samma skäl som i editorn – gränssnittet svarar alltid på
@@ -162,7 +168,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(selected) = selected {
         list.overlay_items = gizmo::gizmo_items(&mut world, selected, camera, gizmo_mesh, None);
     }
-    list.ui_items = ui.build(&commands, &assets);
+    list.ui_items = ui.build(&commands, &assets, scale);
     ui.upload(&mut renderer);
     renderer.render(&list)?;
 

@@ -152,7 +152,7 @@ fn main() -> anyhow::Result<()> {
             None,
         );
     }
-    list.ui_items = ui.build(&commands, &assets);
+    list.ui_items = ui.build(&commands, &assets, 1.0);
     ui.upload(&mut renderer);
     renderer.render(&list)?;
 

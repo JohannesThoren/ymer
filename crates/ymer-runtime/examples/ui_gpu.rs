@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
     // Ordningen spelar roll: build rastrerar de glyfer framen behöver,
     // upload skickar atlasen till GPU:n. Tvärtom ritas varje tecken
     // första gången det används som tomrum.
-    list.ui_items = backend.build(&commands, &assets);
+    list.ui_items = backend.build(&commands, &assets, 1.0);
     backend.upload(&mut renderer);
 
     renderer.render(&list)?;

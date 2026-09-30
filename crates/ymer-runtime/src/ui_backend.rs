@@ -21,6 +21,28 @@ use ymer_core::{Mat4, MeshId, TextureId, Vec3};
 use ymer_render::{Assets, DrawItem, Renderer};
 use ymer_ui::{Command, DrawList, FontAtlas};
 
+/// En rektangel från logiska punkter till målets pixlar.
+///
+/// Gränssnittet läggs ut i punkter, så att en knapp är lika stor på en
+/// skärm med dubbel pixeltäthet. Renderarens skärmpass räknar i pixlar.
+/// Skalan mellan de två måste läggas på någonstans, och det här är
+/// stället — före klippningen, så att klipprektanglarna följer med.
+///
+/// Missar man det ritas hela gränssnittet i halv storlek uppe i vänstra
+/// hörnet på en näthinneskärm, medan musen träffar rätt. Det ser ut som
+/// ett layoutfel och är ett enhetsfel.
+fn scaled(rect: ymer_ui::Rect, scale: f32) -> ymer_ui::Rect {
+    if scale == 1.0 {
+        return rect;
+    }
+    ymer_ui::Rect::new(
+        rect.x * scale,
+        rect.y * scale,
+        rect.width * scale,
+        rect.height * scale,
+    )
+}
+
 /// En textrad som ska bli glyfkvadrater.
 #[derive(Debug, Clone, Copy)]
 struct TextRun {
@@ -107,7 +129,7 @@ impl UiBackend {
     /// Bygger renderarens items ur en ritlista.
     ///
     /// Resultatet läggs i `RenderList::ui_items`, som ritas i skärmrymd.
-    pub fn build(&mut self, list: &DrawList, assets: &Assets) -> Vec<DrawItem> {
+    pub fn build(&mut self, list: &DrawList, assets: &Assets, scale: f32) -> Vec<DrawItem> {
         let texture = match self.texture {
             Some(texture) => texture,
             // Utan atlas ritas ingenting hellre än fel sak.
@@ -116,13 +138,13 @@ impl UiBackend {
         let mut items = Vec::with_capacity(list.commands.len());
 
         for item in &list.commands {
-            let clip = item.clip;
+            let clip = scaled(item.clip, scale);
             match &item.command {
                 Command::Rect { rect, color, .. } => {
                     // Den vita pixeln är enfärgad, så UV:n behöver inte
                     // trimmas – men rektangeln måste skäras.
                     items.extend(self.quad_item(
-                        *rect,
+                        scaled(*rect, scale),
                         texture,
                         *color,
                         self.atlas_uv(self.white),
@@ -143,8 +165,12 @@ impl UiBackend {
                     &mut items,
                     text,
                     TextRun {
-                        rect: *rect,
-                        size: *size,
+                        rect: scaled(*rect, scale),
+                        // Glyferna rastreras i *målets* storlek, inte i
+                        // den logiska. Rastrerar man 13 punkter och
+                        // förstorar dubbelt blir texten suddig; ber man
+                        // atlasen om 26 blir den skarp.
+                        size: *size * scale,
                         color: *color,
                         clip,
                     },

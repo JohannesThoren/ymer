@@ -567,7 +567,7 @@ impl ApplicationHandler for Editor {
                 // Ordningen är inte fri: `build` rastrerar framens
                 // glyfer, `upload` skickar atlasen. Tvärtom ritas varje
                 // tecken som tomrum första gången det används.
-                list.ui_items = ui.build(&commands, &self.assets);
+                list.ui_items = ui.build(&commands, &self.assets, scale);
                 ui.upload(renderer);
 
                 if let Err(err) = renderer.render(&list) {

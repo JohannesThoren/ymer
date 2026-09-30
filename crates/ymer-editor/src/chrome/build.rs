@@ -59,11 +59,9 @@ fn toolbar(theme: &Theme, editor: &EditorState, world: &World, registry: &TypeRe
     let mut items = vec![
         Node::button(
             "tb/play",
-            if editor.playing {
-                "⏸ Paus"
-            } else {
-                "▶ Spela"
-            },
+            // Bara tecken typsnittet har. En saknad glyf ritas som en
+            // ruta, och en ruta i topplisten ser ut som ett programfel.
+            if editor.playing { "Paus" } else { "Spela" },
         )
         .with_style(theme.button().with_background(theme.accent)),
     ];
