@@ -4,3 +4,14 @@ target = "armv6k-nintendo-3ds"
 [unstable]
 build-std = ["std", "panic_abort"]
 build-std-features = ["compiler-builtins-mem"]
+
+# citro3d-macros läser DEVKITPRO med `env!`, alltså vid kompilering, och
+# devkitPro sätter variabeln i skalprofilen — den finns därför inte i ett
+# icke-inloggat skal, i en editor eller i CI.
+#
+# `force` är false som standard, så ett värde du redan har i skalet
+# vinner. Ligger devkitPro någon annanstans behöver du alltså inte röra
+# den här filen, bara exportera variabeln.
+[env]
+DEVKITPRO = "/opt/devkitpro"
+DEVKITARM = "/opt/devkitpro/devkitARM"

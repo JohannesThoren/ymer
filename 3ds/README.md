@@ -19,6 +19,12 @@ cargo install cargo-3ds
 är tier 3, så std byggs ur källkoden med `-Z build-std`. Det sköts av
 `.cargo/config.toml` och behöver inget av dig.
 
+Samma fil pekar ut `DEVKITPRO=/opt/devkitpro`, för `citro3d-macros` läser
+den variabeln med `env!` — vid kompilering, inte vid körning — och
+devkitPro sätter den bara i skalprofilen. Ligger devkitPro någon
+annanstans hos dig räcker det att exportera variabeln i skalet: ett värde
+som redan finns vinner över filens.
+
 ## Bygga och köra
 
 ```sh
